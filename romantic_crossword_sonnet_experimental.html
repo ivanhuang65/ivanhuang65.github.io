@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Crossword Sonnet — Experimental</title>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Outfit:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --ink:#2b2225;
+    --wine:#7f1f3c;
+    --rose:#d0507a;
+    --blush:#ffdfe8;
+    --paper:#fff9f3;
+    --sand:#f6ede4;
+    --teal:#2f5952;
+    --line:#e7b6c7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    min-height:100vh;
+    font-family:'Outfit',sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1100px 620px at 12% -10%,#ffd8e5 0%,transparent 55%),
+      radial-gradient(1000px 600px at 92% -5%,#e4f4ef 0%,transparent 52%),
+      linear-gradient(160deg,#fff8f5 0%,#fff3ef 52%,#fdf7f2 100%);
+    -webkit-tap-highlight-color:transparent;
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:.12;
+    background-image:repeating-linear-gradient(45deg,transparent 0 10px,#dca4b6 10px 11px,transparent 11px 22px);
+    mask-image:linear-gradient(to bottom,transparent,black 20%,black 80%,transparent);
+  }
+  .wrap{position:relative;z-index:1;max-width:1140px;margin:0 auto;padding:18px 12px 64px}
+  .top{display:grid;gap:10px;justify-items:center;text-align:center;margin-bottom:14px}
+  .eyebrow{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:#9a6b79}
+  h1{font-family:'Bodoni Moda',serif;font-weight:700;letter-spacing:.04em;font-size:clamp(1.55rem,5vw,2.5rem);color:#5f1831}
+  .sub{font-size:.83rem;letter-spacing:.09em;color:#9f6f7d;text-transform:uppercase}
+  .divider{width:190px;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+  .layout{display:grid;grid-template-columns:minmax(320px,1fr) minmax(260px,420px);gap:14px;align-items:start}
+  .stack{display:grid;gap:12px}
+  .card{
+    background:color-mix(in srgb,var(--paper) 86%,white 14%);
+    border:1px solid #efc8d5;
+    border-radius:16px;
+    box-shadow:0 12px 30px rgba(120,33,62,.08);
+  }
+  .banner{display:none;margin:0 12px 2px;padding:10px 14px;border-radius:10px;background:linear-gradient(140deg,#ffe8ee,#fff4f1);border:1px solid #efb8c9;color:#7f1f3c;font-style:italic;text-align:center}
+  .clue-box{margin:12px 12px 0;padding:10px 12px;border-radius:10px;background:#fffdf9;border:1px solid #f2d2dc;min-height:52px;display:flex;align-items:center;justify-content:center;text-align:center;color:#572437;line-height:1.4}
+  .clue-box em{color:#ad8793;font-size:.9rem}
+  .grid-wrap{padding:10px 10px 12px}
+  .grid-scroll{overflow-x:auto;display:flex;justify-content:center;padding:4px}
+  .grid{display:inline-grid;gap:1px;background:#d39cb0;padding:2px;border-radius:8px;box-shadow:0 10px 26px rgba(130,38,70,.18)}
+  .cell{position:relative;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .12s}
+  .cell.black{background:#e8ccda;cursor:default}
+  .cell.white{background:#fffefc}
+  .cell.highlight{background:#fee5ed}
+  .cell.selected{background:#bf3a62;outline:2.5px solid #5f1831;outline-offset:-2px}
+  .cnum{position:absolute;top:1px;left:2px;font-size:7px;line-height:1;font-weight:700;font-family:Arial,sans-serif;color:#a04060;z-index:2}
+  .cell.selected .cnum{color:#f8d0dc}
+  .cletter{font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;letter-spacing:.02em;color:#2a0015}
+  .cell.selected .cletter{color:#fff}
+  .cletter.revealed{color:#8b1a35}
+  .indicator{position:absolute;bottom:1px;right:2px;font-size:8px;line-height:1;font-family:Arial,sans-serif;font-weight:700;z-index:2;display:none}
+  .indicator.correct{display:block;color:#2e7d32}
+  .indicator.wrong{display:block;color:#c62828}
+  .cell.selected .indicator.correct{color:#baf7be}
+  .cell.selected .indicator.wrong{color:#ffc7c7}
+
+  .controls{padding:0 12px 12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
+  .score{font-size:.83rem;color:#8c5d6b}
+  .sep{width:1px;height:16px;background:#e5bdca}
+  .btn{font-family:'Outfit',sans-serif;font-size:.8rem;padding:8px 14px;border-radius:999px;cursor:pointer;letter-spacing:.03em;transition:all .15s;background:#fff}
+  .btn-check{border:1.4px solid #3b7f57;color:#2f5f42}
+  .btn-check.active{background:#3b7f57;color:#fff}
+  .btn-rose{border:1.4px solid #c23f6a;color:#a72b53}
+  .btn-rose.active{background:#c23f6a;color:#fff}
+  .btn-burg{border:1.4px solid #6f3a4d;color:#6f3a4d}
+
+  .keyboard-card{padding:10px;border-top:1px solid #efd3dd;background:linear-gradient(180deg,#fff9f6,#fff4f8)}
+  .keyboard{display:grid;gap:7px;width:min(680px,100%);margin:0 auto}
+  .kb-row{display:grid;gap:6px;grid-template-columns:repeat(var(--cols),minmax(0,1fr))}
+  .kb-key{
+    width:100%;
+    min-height:42px;
+    aspect-ratio:1/1.08;
+    border-radius:10px;
+    border:1.3px solid #d79db2;
+    background:#fff;
+    color:#562334;
+    font-family:'Outfit',sans-serif;
+    font-weight:600;
+    font-size:clamp(.84rem,2.8vw,1.02rem);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 2px 0 rgba(180,84,113,.12);
+    touch-action:manipulation;
+  }
+  .kb-key:active{transform:translateY(1px);background:#ffeef4}
+  .kb-key.wide{grid-column:span 2;aspect-ratio:auto}
+
+  .panel{padding:12px}
+  .clue-panels{display:grid;gap:12px}
+  .clue-col{background:#fffdf9;border:1px solid #f0d4dd;border-radius:12px;padding:10px}
+  .clue-head{font-family:'Bodoni Moda',serif;font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:#8b3d55;border-bottom:1px solid #f0d4dd;padding-bottom:6px;margin-bottom:6px}
+  .clue-row{padding:4px 7px;margin-bottom:2px;border-radius:6px;cursor:pointer;border-left:2px solid transparent;font-size:.8rem;color:#4c2431;line-height:1.45;transition:background .1s}
+  .clue-row:hover{background:#fcecf2}
+  .clue-row.active{background:#feeaf2;border-left-color:#c23f6a;color:#5a1030}
+  .clue-row strong{color:#9b3a58}
+
+  .sonnet-wrap{margin-top:10px;padding:12px;border-radius:14px;background:linear-gradient(160deg,#fffaf6,#fff5f2);border:1px solid #f0d3cb}
+  .sonnet-head{font-family:'Bodoni Moda',serif;font-size:.78rem;letter-spacing:.16em;text-transform:uppercase;color:#7f4f5f;margin-bottom:6px}
+  .sonnet{font-size:.98rem;line-height:1.85;color:#4a2732}
+  .sonnet p{margin-bottom:2px}
+  .sonnet-slot{display:inline-block;padding:0 3px;min-width:34px;text-align:center;border-bottom:1px dashed #d18ca5;color:#af7c8f;font-family:Arial,sans-serif;font-size:.82em;letter-spacing:.06em}
+  .sonnet-slot.filled{border-bottom-color:#8f4962;color:#5d1f35;font-family:'Outfit',sans-serif;font-size:.95em;font-weight:700;letter-spacing:.03em}
+  .sonnet-progress{margin-top:8px;text-align:right;font-size:.78rem;color:#98697a}
+  .hint{margin-top:14px;text-align:center;font-size:.78rem;color:#9a7280}
+
+  .cell[data-wb="top"]{border-top:3px solid #6b1a3a !important}
+  .cell[data-wb="left"]{border-left:3px solid #6b1a3a !important}
+
+  @media(max-width:930px){
+    .layout{grid-template-columns:1fr}
+  }
+  @media(max-width:700px){
+    .wrap{padding:12px 8px 28px}
+    .card{border-radius:13px}
+    .controls{gap:7px}
+    .btn{padding:8px 12px;font-size:.77rem}
+    .keyboard{gap:6px}
+    .kb-row{gap:5px}
+    .kb-key{min-height:39px;border-radius:9px}
+    .sonnet{font-size:.9rem;line-height:1.7}
+    .sonnet-slot{min-width:28px}
+  }
+  @media(max-width:480px){
+    .keyboard-card{position:sticky;bottom:6px;z-index:3;border-radius:10px;margin:0 6px 8px}
+    .clue-row{font-size:.76rem}
+    .score{width:100%;text-align:center}
+    .sep{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="eyebrow">an experimental crossword sonnet</div>
+    <h1>crossword for anneliese</h1>
+    <div class="sub">made by ivan · alternate design</div>
+    <div class="divider"></div>
+  </div>
+
+  <div class="layout">
+    <div class="stack">
+      <section class="card">
+        <div id="banner" class="banner">✦ sonnet complete ✦</div>
+        <div class="clue-box" id="clue-display"><em>tap a cell to begin</em></div>
+        <div class="grid-wrap">
+          <div class="grid-scroll"><div class="grid" id="grid"></div></div>
+        </div>
+        <div class="controls">
+          <span class="score" id="score">0 of 0 correct</span>
+          <div class="sep"></div>
+          <button class="btn btn-check" id="checkBtn" onclick="toggleCheck()">check</button>
+          <button class="btn btn-rose" id="revBtn" onclick="toggleReveal()">reveal</button>
+          <button class="btn btn-burg" onclick="clearAll()">clear</button>
+        </div>
+        <div class="keyboard-card">
+          <div class="keyboard" id="keyboard">
+            <div class="kb-row" id="kbr1"></div>
+            <div class="kb-row" id="kbr2"></div>
+            <div class="kb-row" id="kbr3"></div>
+          </div>
+        </div>
+      </section>
+      <div class="hint">responsive keyboard · tap a clue to jump · tap same cell to switch direction</div>
+    </div>
+
+    <aside class="stack">
+      <section class="card panel">
+        <div class="clue-panels" id="clue-panels"></div>
+      </section>
+      <section class="card panel sonnet-wrap">
+        <div class="sonnet-head">sonnet, fractured / filled as you solve</div>
+        <div class="sonnet" id="sonnet"></div>
+        <div class="sonnet-progress" id="sonnet-progress">0 of 30 blanks filled</div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+const ROWS=15,COLS=14;
+function getCellSize(){
+  const maxWidth=Math.min(window.innerWidth-26,580);
+  return Math.max(22,Math.min(38,Math.floor((maxWidth-18)/COLS)));
+}
+let CS=getCellSize();
+
+const WORDS=[
+  {id:"1A", word:"ROSE", dir:"across", row:0, col:0, num:1},
+  {id:"3A", word:"CANDLE", dir:"across", row:0, col:6, num:3},
+  {id:"6A", word:"MOSS", dir:"across", row:2, col:0, num:6},
+  {id:"7A", word:"GENTLE", dir:"across", row:2, col:5, num:7},
+  {id:"9A", word:"ECHO", dir:"across", row:3, col:10, num:9},
+  {id:"11A",word:"CHERISH", dir:"across", row:5, col:0, num:11},
+  {id:"13A",word:"HEART", dir:"across", row:6, col:9, num:13},
+  {id:"15A",word:"SEA", dir:"across", row:7, col:1, num:15},
+  {id:"16A",word:"RED", dir:"across", row:7, col:6, num:16},
+  {id:"19A",word:"WHISPER", dir:"across", row:9, col:0, num:19},
+  {id:"21A",word:"TEA", dir:"across", row:10, col:10, num:21},
+  {id:"23A",word:"BOSOM", dir:"across", row:11, col:4, num:23},
+  {id:"24A",word:"EGO", dir:"across", row:12, col:10, num:24},
+  {id:"25A",word:"REVERIE", dir:"across", row:13, col:4, num:25},
+  {id:"26A",word:"HUSHED", dir:"across", row:14, col:0, num:26},
+  {id:"27A",word:"TREE", dir:"across", row:14, col:10, num:27},
+  {id:"1D", word:"ROMANCE", dir:"down", row:0, col:0, num:1},
+  {id:"2D", word:"EASIER", dir:"down", row:0, col:3, num:2},
+  {id:"3D", word:"CLENCH", dir:"down", row:0, col:6, num:3},
+  {id:"4D", word:"NOTE", dir:"down", row:0, col:8, num:4},
+  {id:"5D", word:"ASH", dir:"down", row:1, col:12, num:5},
+  {id:"8D", word:"EERIE", dir:"down", row:2, col:10, num:8},
+  {id:"10D",word:"ORATE", dir:"down", row:3, col:13, num:10},
+  {id:"12D",word:"EVENING", dir:"down", row:5, col:2, num:12},
+  {id:"14D",word:"AIR", dir:"down", row:6, col:11, num:14},
+  {id:"17D",word:"DREAMER", dir:"down", row:7, col:8, num:17},
+  {id:"18D",word:"BELOVED", dir:"down", row:8, col:5, num:18},
+  {id:"19D",word:"WARMTH", dir:"down", row:9, col:0, num:19},
+  {id:"20D",word:"STREET", dir:"down", row:9, col:10, num:20},
+  {id:"22D",word:"ADORE", dir:"down", row:10, col:12, num:22},
+];
+
+const CLUES={
+  across:[
+    {num:1, text:"Romantic bloom often handed with love"},
+    {num:3, text:"Wax-and-wick light for soft evenings"},
+    {num:6, text:"Velvety green patch on old stone"},
+    {num:7, text:"Soft in manner; kind and tender"},
+    {num:9, text:"A repeated sound returning from afar"},
+    {num:11,text:"To hold someone dear"},
+    {num:13,text:"Seat of feeling"},
+    {num:15,text:"The wide salt water"},
+    {num:16,text:"Color of roses and blush"},
+    {num:19,text:"To speak in a very soft voice"},
+    {num:21,text:"Warm drink steeped from leaves"},
+    {num:23,text:"Poetic word for chest"},
+    {num:24,text:"Sense of self"},
+    {num:25,text:"A dreamy wandering of the mind"},
+    {num:26,text:"Grown very quiet"},
+    {num:27,text:"Rooted giant with branches"},
+  ],
+  down:[
+    {num:1, text:"Love as a story and a force"},
+    {num:2, text:"Less difficult"},
+    {num:3, text:"To grip tightly"},
+    {num:4, text:"A short written message"},
+    {num:5, text:"Powdery remains after a fire"},
+    {num:8, text:"Strange in an unsettling way"},
+    {num:10,text:"To speak formally to an audience"},
+    {num:12,text:"The closing part of day"},
+    {num:14,text:"What we breathe"},
+    {num:17,text:"One who lives by imagination"},
+    {num:18,text:"The cherished one"},
+    {num:19,text:"Cozy heat felt in body and room"},
+    {num:20,text:"A city road lined by buildings"},
+    {num:22,text:"To love deeply"},
+  ],
+};
+
+const SONNET_LINES=[
+  "A {1A} and {3A}: two kinds of fire, two kinds of skin.",
+  "{1D} arrives as {12D} metal, then thins to {14D}.",
+  "The {20D} keeps moving; your touch grows {7A}, then {2D}.",
+  "One {19A} from you becomes a roomful of {19D}.",
+  "I fold a {4D} into my sleeve; I {10D} nothing else.",
+  "{9A} over {15A}; then a little {5D} in my mouth.",
+  "Your {13A}, {18D}, against my {23A} like held weather.",
+  "My {24A} falls silent, {26A} into {16A} dusk.",
+  "My hands still {3D}, then open, then {11A}.",
+  "Even the {8D} edges of us drift toward {25A}.",
+  "Call me {17D}; I will stay and keep listening.",
+  "In old stone, new {6A}; in old ache, new light.",
+  "Late {21A} steams while the window keeps one {27A}.",
+  "No ending trick: I remain here, and {22D}."
+];
+
+const WORD_BY_ID=Object.fromEntries(WORDS.map(w=>[w.id,w]));
+const cellMap={};
+WORDS.forEach(({id,word,dir,row,col,num})=>{
+  for(let i=0;i<word.length;i++){
+    const r=dir==="across"?row:row+i;
+    const c=dir==="across"?col+i:col;
+    const k=`${r}-${c}`;
+    if(!cellMap[k]) cellMap[k]={answer:"",num:null,ids:[]};
+    cellMap[k].answer=word[i];
+    cellMap[k].ids.push(id);
+    if(i===0 && !cellMap[k].num) cellMap[k].num=num;
+  }
+});
+
+let letters={}, sel=null, selDir="across", revealed=false, checking=false, solved=false;
+
+function wCells({word,dir,row,col}){
+  return Array.from({length:word.length},(_,i)=>({
+    r:dir==="across"?row:row+i,
+    c:dir==="across"?col+i:col,
+  }));
+}
+
+function getActiveWord(){
+  if(!sel) return null;
+  const cell=cellMap[`${sel.r}-${sel.c}`];
+  if(!cell) return null;
+  const sfx=selDir==="across"?"A":"D";
+  const id=cell.ids.find(v=>v.endsWith(sfx))||cell.ids[0];
+  return WORDS.find(w=>w.id===id)||null;
+}
+
+const WORD_BREAKS={};
+
+function buildGrid(){
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
+  const wbMap={};
+  Object.entries(WORD_BREAKS).forEach(([wid,{pos,type}])=>{
+    const w=WORDS.find(x=>x.id===wid); if(!w) return;
+    const r=w.dir==="down"?w.row+pos:w.row;
+    const c=w.dir==="across"?w.col+pos:w.col;
+    wbMap[`${r}-${c}`]=type;
+  });
+  grid.style.gridTemplateColumns=`repeat(${COLS},${CS}px)`;
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const k=`${r}-${c}`;
+      const cv=cellMap[k];
+      const div=document.createElement("div");
+      div.className="cell "+(cv?"white":"black");
+      div.style.width=`${CS}px`;
+      div.style.height=`${CS}px`;
+      div.dataset.r=r;
+      div.dataset.c=c;
+      if(wbMap[k]) div.dataset.wb=wbMap[k];
+      if(cv){
+        if(cv.num){
+          const n=document.createElement("span");
+          n.className="cnum";
+          n.textContent=cv.num;
+          div.appendChild(n);
+        }
+        const l=document.createElement("span");
+        l.className="cletter";
+        l.id=`L${k}`;
+        div.appendChild(l);
+        const ind=document.createElement("span");
+        ind.className="indicator";
+        ind.id=`I${k}`;
+        div.appendChild(ind);
+        div.addEventListener("click",()=>pickCell(r,c));
+      }
+      grid.appendChild(div);
+    }
+  }
+}
+
+function buildSonnet(){
+  const sonnet=document.getElementById("sonnet");
+  sonnet.innerHTML="";
+  SONNET_LINES.forEach(line=>{
+    const p=document.createElement("p");
+    p.innerHTML=line.replace(/\{([0-9]+[AD])\}/g,(_,wid)=>{
+      const w=WORD_BY_ID[wid];
+      const blank=w?"_".repeat(w.word.length):"";
+      return `<span class="sonnet-slot" data-wid="${wid}">${blank}</span>`;
+    });
+    sonnet.appendChild(p);
+  });
+}
+
+function cellEl(r,c){
+  return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+}
+
+function isWordSolved(wordObj){
+  const cells=wCells(wordObj);
+  return cells.every(({r,c},i)=>{
+    const k=`${r}-${c}`;
+    return (letters[k]||"")===wordObj.word[i];
+  });
+}
+
+function updateSonnet(wordSolved){
+  let solvedCount=0;
+  Object.keys(wordSolved).forEach(id=>{if(wordSolved[id]) solvedCount++;});
+  document.querySelectorAll(".sonnet-slot").forEach(el=>{
+    const wid=el.dataset.wid;
+    const w=WORD_BY_ID[wid];
+    if(!w) return;
+    const filled=revealed||wordSolved[wid];
+    el.textContent=filled?w.word:"_".repeat(w.word.length);
+    el.classList.toggle("filled",filled);
+  });
+  document.getElementById("sonnet-progress").textContent=`${solvedCount} of ${WORDS.length} blanks filled`;
+}
+
+function render(){
+  const aw=getActiveWord();
+  const hlSet=new Set(aw?wCells(aw).map(({r,c})=>`${r}-${c}`):[]);
+  const wordSolved={};
+  WORDS.forEach(w=>{wordSolved[w.id]=isWordSolved(w);});
+
+  let total=0,correct=0;
+  Object.entries(cellMap).forEach(([k,cv])=>{
+    total++;
+    const [r,c]=k.split("-");
+    const el=cellEl(r,c);
+    if(!el) return;
+    const isSel=sel&&sel.r==r&&sel.c==c;
+    const isHL=hlSet.has(k);
+    el.className="cell white"+(isSel?" selected":isHL?" highlight":"");
+
+    const lEl=document.getElementById(`L${k}`);
+    const indEl=document.getElementById(`I${k}`);
+    if(lEl){
+      const userL=letters[k]||"";
+      const disp=revealed?(cv.answer||""):userL;
+      lEl.textContent=disp;
+      lEl.className="cletter"+(revealed?" revealed":"");
+      if(disp===cv.answer) correct++;
+      if(indEl){
+        indEl.className="indicator";
+        indEl.textContent="";
+        if(checking && !revealed && userL){
+          if(userL===cv.answer){
+            indEl.className="indicator correct";
+            indEl.textContent="✓";
+          } else {
+            indEl.className="indicator wrong";
+            indEl.textContent="✗";
+          }
+        }
+      }
+    }
+  });
+
+  document.getElementById("score").textContent=`${correct} of ${total} correct`;
+  const clueBox=document.getElementById("clue-display");
+  const cl=aw?CLUES[aw.dir].find(x=>x.num===aw.num):null;
+  clueBox.innerHTML=cl?`<strong>${aw.num} ${aw.dir}</strong> — ${cl.text}`:`<em>tap a cell to begin</em>`;
+
+  document.querySelectorAll(".clue-row").forEach(row=>{
+    row.classList.toggle("active",aw&&row.dataset.wid===aw.id);
+  });
+
+  updateSonnet(wordSolved);
+
+  if(!solved && total>0 && correct===total){
+    solved=true;
+    document.getElementById("banner").style.display="block";
+  }
+}
+
+function pickCell(r,c){
+  const k=`${r}-${c}`;
+  if(!cellMap[k]) return;
+  if(sel&&sel.r==r&&sel.c==c){
+    const nd=selDir==="across"?"down":"across";
+    const sfx=nd==="across"?"A":"D";
+    if(cellMap[k].ids.some(id=>id.endsWith(sfx))) selDir=nd;
+  } else {
+    sel={r,c};
+    const hasA=cellMap[k].ids.some(id=>id.endsWith("A"));
+    const hasD=cellMap[k].ids.some(id=>id.endsWith("D"));
+    if(hasA&&!hasD) selDir="across";
+    else if(hasD&&!hasA) selDir="down";
+  }
+  render();
+}
+
+function advance(){
+  const aw=getActiveWord(); if(!aw||!sel) return;
+  const cells=wCells(aw);
+  const i=cells.findIndex(x=>x.r==sel.r&&x.c==sel.c);
+  if(i<cells.length-1) sel={r:cells[i+1].r,c:cells[i+1].c};
+}
+
+function retreat(){
+  const aw=getActiveWord(); if(!aw||!sel) return;
+  const cells=wCells(aw);
+  const i=cells.findIndex(x=>x.r==sel.r&&x.c==sel.c);
+  if(i>0) sel={r:cells[i-1].r,c:cells[i-1].c};
+}
+
+document.addEventListener("keydown",e=>{
+  if(!sel) return;
+  const k=`${sel.r}-${sel.c}`;
+  if(e.key==="Backspace"){
+    e.preventDefault();
+    if(letters[k]){delete letters[k];}else retreat();
+    render();
+    return;
+  }
+  if(e.key==="ArrowLeft"||e.key==="ArrowRight"||e.key==="ArrowUp"||e.key==="ArrowDown"){
+    e.preventDefault();
+    const dr=e.key==="ArrowDown"?1:e.key==="ArrowUp"?-1:0;
+    const dc=e.key==="ArrowRight"?1:e.key==="ArrowLeft"?-1:0;
+    const nk=`${+sel.r+dr}-${+sel.c+dc}`;
+    if(cellMap[nk]) sel={r:+sel.r+dr,c:+sel.c+dc};
+    if(dr!==0) selDir="down";
+    if(dc!==0) selDir="across";
+    render();
+    return;
+  }
+  if(/^[a-zA-Z]$/.test(e.key)){
+    e.preventDefault();
+    letters[k]=e.key.toUpperCase();
+    advance();
+    render();
+  }
+});
+
+function typeKey(ch){
+  if(!sel) return;
+  const k=`${sel.r}-${sel.c}`;
+  if(ch==="⌫"){
+    if(letters[k]) delete letters[k];
+    else retreat();
+  } else if(ch==="↔"){
+    const nd=selDir==="across"?"down":"across";
+    const sfx=nd==="across"?"A":"D";
+    if(cellMap[k]&&cellMap[k].ids.some(id=>id.endsWith(sfx))) selDir=nd;
+  } else {
+    letters[k]=ch;
+    advance();
+  }
+  render();
+}
+
+function toggleCheck(){
+  checking=!checking;
+  const b=document.getElementById("checkBtn");
+  b.textContent=checking?"uncheck":"check";
+  b.classList.toggle("active",checking);
+  render();
+}
+
+function toggleReveal(){
+  revealed=!revealed;
+  const b=document.getElementById("revBtn");
+  b.textContent=revealed?"hide":"reveal";
+  b.classList.toggle("active",revealed);
+  render();
+}
+
+function clearAll(){
+  letters={};
+  revealed=false;
+  checking=false;
+  solved=false;
+  const rb=document.getElementById("revBtn");
+  rb.textContent="reveal";
+  rb.classList.remove("active");
+  const cb=document.getElementById("checkBtn");
+  cb.textContent="check";
+  cb.classList.remove("active");
+  document.getElementById("banner").style.display="none";
+  render();
+}
+
+function buildClues(){
+  const panel=document.getElementById("clue-panels");
+  panel.innerHTML="";
+  ["across","down"].forEach(dir=>{
+    const col=document.createElement("div");
+    col.className="clue-col";
+    const head=document.createElement("div");
+    head.className="clue-head";
+    head.textContent=dir;
+    col.appendChild(head);
+    CLUES[dir].forEach(({num,text})=>{
+      const wid=`${num}${dir==="across"?"A":"D"}`;
+      const row=document.createElement("div");
+      row.className="clue-row";
+      row.dataset.wid=wid;
+      row.innerHTML=`<strong>${num}.</strong> ${text}`;
+      row.addEventListener("click",()=>{
+        const wd=WORDS.find(w=>w.id===wid);
+        if(wd){
+          sel={r:wd.row,c:wd.col};
+          selDir=dir;
+          render();
+        }
+      });
+      col.appendChild(row);
+    });
+    panel.appendChild(col);
+  });
+}
+
+function buildKeyboard(){
+  const rows=[
+    ["Q","W","E","R","T","Y","U","I","O","P"],
+    ["A","S","D","F","G","H","J","K","L"],
+    ["↔","Z","X","C","V","B","N","M","⌫"],
+  ];
+  rows.forEach((row,i)=>{
+    const el=document.getElementById(`kbr${i+1}`);
+    el.innerHTML="";
+    el.style.setProperty("--cols", i===0?10:(i===1?9:11));
+    row.forEach(ch=>{
+      const btn=document.createElement("button");
+      btn.type="button";
+      btn.className="kb-key"+((ch==="⌫"||ch==="↔")?" wide":"");
+      btn.textContent=ch;
+      btn.setAttribute("aria-label", ch==="⌫"?"Backspace":(ch==="↔"?"Switch direction":`Type ${ch}`));
+      const onPress=(e)=>{e.preventDefault();typeKey(ch);};
+      btn.addEventListener("click",onPress);
+      btn.addEventListener("pointerdown",e=>{if(e.pointerType==="touch") e.preventDefault();});
+      el.appendChild(btn);
+    });
+  });
+}
+
+function handleResize(){
+  const next=getCellSize();
+  if(next!==CS){
+    CS=next;
+    buildGrid();
+    render();
+  }
+}
+
+buildGrid();
+buildClues();
+buildKeyboard();
+buildSonnet();
+render();
+window.addEventListener("resize",handleResize);
+</script>
+</body>
+</html>
