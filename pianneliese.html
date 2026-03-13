@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>pianneliese</title>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --ink:#2a2127;
+    --wine:#7a2344;
+    --rose:#cf4f7c;
+    --paper:#fff8f2;
+    --line:#ebc4d2;
+    --ok:#2f7a4f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    min-height:100vh;
+    font-family:'Outfit',sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 640px at 10% -15%,#ffdce9 0%,transparent 56%),
+      radial-gradient(900px 520px at 92% -9%,#e5f3ec 0%,transparent 53%),
+      linear-gradient(160deg,#fff9f5 0%,#fff2ed 52%,#fdf7f2 100%);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    opacity:.09;
+    background-image:repeating-linear-gradient(45deg,transparent 0 10px,#dca4b6 10px 11px,transparent 11px 22px);
+    mask-image:linear-gradient(to bottom,transparent,black 18%,black 84%,transparent);
+  }
+  .reactive-bg{
+    position:fixed;
+    inset:0;
+    overflow:hidden;
+    pointer-events:none;
+    z-index:0;
+    --h:330;
+    --energy:.18;
+    --flash:.24;
+    --x1:24%;
+    --y1:14%;
+    --x2:79%;
+    --y2:20%;
+    --spin:0deg;
+    background:
+      radial-gradient(72vw 52vh at var(--x1) var(--y1), hsl(calc(var(--h) + 6) 68% 72% / calc(.12 + var(--energy) * .30)) 0%, transparent 62%),
+      radial-gradient(58vw 44vh at var(--x2) var(--y2), hsl(calc(var(--h) + 68) 66% 70% / calc(.10 + var(--energy) * .28)) 0%, transparent 66%),
+      conic-gradient(from calc(var(--h) * 1deg) at 50% 50%, hsl(calc(var(--h) + 24) 80% 72% / calc(var(--flash) * .34)), transparent 24%, hsl(calc(var(--h) + 142) 76% 68% / calc(var(--flash) * .25)), transparent 56%, hsl(calc(var(--h) + 230) 78% 70% / calc(var(--flash) * .30)), transparent 84%);
+    filter:saturate(calc(1 + var(--energy) * 1.35)) contrast(calc(1 + var(--energy) * .24)) brightness(calc(1 + var(--energy) * .12));
+    transform:scale(calc(1 + var(--energy) * .03)) rotate(var(--spin));
+    transition:background .16s linear, filter .12s linear, transform .14s ease-out;
+  }
+  .reactive-bg::before,
+  .reactive-bg::after{
+    content:"";
+    position:absolute;
+    inset:-16%;
+    pointer-events:none;
+    mix-blend-mode:screen;
+  }
+  .reactive-bg::before{
+    background:
+      radial-gradient(34vw 34vw at 16% 18%, hsl(calc(var(--h) + 20) 80% 78% / calc(.08 + var(--energy) * .22)) 0%, transparent 64%),
+      radial-gradient(28vw 28vw at 86% 30%, hsl(calc(var(--h) + 148) 78% 74% / calc(.06 + var(--energy) * .20)) 0%, transparent 68%);
+    animation:auroraDrift 8.2s linear infinite alternate;
+  }
+  .reactive-bg::after{
+    background:
+      linear-gradient(115deg, transparent 0%, hsl(calc(var(--h) + 44) 88% 78% / calc(.04 + var(--energy) * .16)) 44%, transparent 72%),
+      linear-gradient(300deg, transparent 8%, hsl(calc(var(--h) + 212) 84% 74% / calc(.03 + var(--energy) * .14)) 46%, transparent 79%);
+    animation:chromaDrift 5.2s ease-in-out infinite;
+  }
+  @keyframes auroraDrift{
+    0%{transform:translate3d(-2%,1%,0) rotate(-1.4deg) scale(1.01)}
+    100%{transform:translate3d(2%,-1.5%,0) rotate(1.6deg) scale(1.04)}
+  }
+  @keyframes chromaDrift{
+    0%,100%{transform:translate3d(0,0,0) rotate(0deg)}
+    35%{transform:translate3d(1.2%,-1.4%,0) rotate(1deg)}
+    70%{transform:translate3d(-1%,-.6%,0) rotate(-.8deg)}
+  }
+  .note-pulse{
+    position:absolute;
+    left:0;
+    top:0;
+    width:var(--s,72px);
+    height:var(--s,72px);
+    border-radius:50%;
+    opacity:0;
+    border:1.6px solid hsl(var(--h,330) 65% 62% / .42);
+    background:radial-gradient(circle, hsl(var(--h,330) 78% 76% / .24) 0%, transparent 66%);
+    box-shadow:0 0 26px hsl(var(--h,330) 75% 70% / .35), inset 0 0 18px hsl(var(--h,330) 90% 84% / .22);
+    transform:translate(-50%,-50%) scale(.36);
+    animation:notePulse var(--d,820ms) cubic-bezier(.2,.68,.18,1) forwards;
+  }
+  .bg-spark{
+    position:absolute;
+    left:0;
+    top:0;
+    width:var(--size,8px);
+    height:var(--size,8px);
+    border-radius:50%;
+    opacity:0;
+    background:hsl(var(--h,330) 84% 76%);
+    box-shadow:0 0 12px hsl(var(--h,330) 84% 76% / .75);
+    transform:translate(-50%,-50%) scale(.5);
+    animation:bgSpark var(--d,760ms) cubic-bezier(.2,.72,.16,1) forwards;
+  }
+  .bg-streak{
+    position:absolute;
+    left:0;
+    top:0;
+    width:var(--w,140px);
+    height:2.2px;
+    border-radius:99px;
+    opacity:0;
+    transform-origin:left center;
+    background:linear-gradient(90deg, hsl(var(--h,330) 86% 78% / .88), transparent 82%);
+    box-shadow:0 0 16px hsl(var(--h,330) 88% 78% / .72);
+    animation:bgStreak var(--d,560ms) cubic-bezier(.2,.72,.16,1) forwards;
+  }
+  @keyframes notePulse{
+    0%{opacity:.88;transform:translate(-50%,-50%) scale(.28)}
+    100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,-18px))) scale(1.85)}
+  }
+  @keyframes bgSpark{
+    0%{opacity:.96;transform:translate(-50%,-50%) scale(.42)}
+    100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,0px))) scale(1.34)}
+  }
+  @keyframes bgStreak{
+    0%{opacity:.95;transform:translate(-50%,-50%) rotate(var(--a,0deg)) scaleX(.16)}
+    100%{opacity:0;transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,0px))) rotate(var(--a,0deg)) scaleX(1.1)}
+  }
+  .app.hit-jolt{
+    animation:hitJolt .14s ease-out;
+  }
+  @keyframes hitJolt{
+    0%{transform:translate3d(0,0,0) rotate(0deg)}
+    28%{transform:translate3d(var(--jx,0px),var(--jy,0px),0) rotate(var(--jr,0deg))}
+    100%{transform:translate3d(0,0,0) rotate(0deg)}
+  }
+
+  .app{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:16px 12px 28px}
+  .top{display:grid;gap:8px;justify-items:center;text-align:center;margin-bottom:12px}
+  h1{font-family:'Bodoni Moda',serif;font-size:clamp(1.55rem,5vw,2.35rem);letter-spacing:.04em;color:#5b1732}
+  .sub{font-size:.82rem;letter-spacing:.09em;color:#936b78;text-transform:uppercase}
+  .divider{width:180px;height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent)}
+
+  .stack{display:grid;gap:12px}
+  .card{
+    background:color-mix(in srgb,var(--paper) 88%,white 12%);
+    border:1px solid #efc9d6;
+    border-radius:16px;
+    box-shadow:0 12px 30px rgba(120,33,62,.08);
+    overflow:hidden;
+  }
+
+  .controls{padding:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center;border-bottom:1px solid #f2d7e1}
+  .btn{
+    border:1.4px solid #b56;
+    background:#fff;
+    color:#5e2a3d;
+    border-radius:999px;
+    padding:8px 12px;
+    font-size:.8rem;
+    letter-spacing:.03em;
+    cursor:pointer;
+    transition:.14s;
+  }
+  .btn:hover{background:#fff5f8}
+  .btn.primary{border-color:#b53b66;color:#9f234d}
+  .btn.warn{border-color:#3f7b58;color:#2f5f43}
+  .btn.rec{border-color:#2f5f43;color:#2f5f43}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .status{padding:10px 12px;border-bottom:1px solid #f2d7e1;background:#fffdf9;color:#5a2537;font-size:.9rem;line-height:1.35;text-align:center}
+  .status strong{color:#6f1f3e}
+
+  .piano-wrap{padding:10px 10px 14px}
+  .piano-scroll{overflow-x:auto;padding-bottom:6px}
+  .piano-shell{position:relative;margin:0 auto;width:max-content;transform-origin:center}
+  .piano{
+    position:relative;
+    border:2px solid #cf9eb2;
+    border-radius:12px;
+    background:linear-gradient(180deg,#fbeff4,#f7e9f0);
+    padding:8px 8px 10px;
+    box-shadow:0 10px 24px rgba(110,35,62,.18);
+  }
+  .keybed{position:relative}
+
+  .pkey{
+    position:absolute;
+    border:none;
+    cursor:pointer;
+    border-radius:0 0 8px 8px;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+    user-select:none;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    font:inherit;
+    transition:transform .08s ease,filter .16s ease;
+  }
+  .pkey.white{
+    background:linear-gradient(180deg,#fff,#f5eff2 82%);
+    border:1px solid #e3ced8;
+    color:#6a4150;
+    z-index:1;
+    box-shadow:inset 0 -6px 10px rgba(0,0,0,.05);
+  }
+  .pkey.black{
+    background:linear-gradient(180deg,#3a2e35,#181217 82%);
+    border:1px solid #0d0a0c;
+    color:#f9e8ef;
+    z-index:3;
+    box-shadow:0 4px 9px rgba(0,0,0,.35), inset 0 -4px 8px rgba(255,255,255,.08);
+  }
+  .pkey.active{
+    transform:translateY(2px) scale(0.99);
+    filter:saturate(1.25) brightness(1.08);
+  }
+  .klabel{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:10px;
+    margin-bottom:7px;
+    opacity:.75;
+    pointer-events:none;
+  }
+  .pkey.black .klabel{font-size:9px;margin-bottom:6px;opacity:.88}
+
+  .info{padding:12px;display:grid;gap:8px}
+  .head{font-family:'Bodoni Moda',serif;font-size:.76rem;letter-spacing:.17em;text-transform:uppercase;color:#7b4256}
+  .list{display:grid;gap:6px;font-size:.86rem;color:#6a4753}
+  .list code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#fff;border:1px solid #edd0da;border-radius:7px;padding:2px 6px;color:#7a2e49}
+
+  @media(max-width:640px){
+    .app{padding:10px 7px 20px}
+    .card{border-radius:13px}
+    .btn{padding:8px 11px;font-size:.76rem}
+  }
+</style>
+</head>
+<body>
+<div class="reactive-bg" id="reactiveBg" aria-hidden="true"></div>
+<div class="app">
+  <div class="top">
+    <h1>pianneliese</h1>
+    <div class="divider"></div>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="controls">
+        <button class="btn primary" id="playBtn">play song for anneliese</button>
+        <button class="btn" id="stopBtn" disabled>stop</button>
+        <button class="btn rec" id="recordBtn">start recording</button>
+        <button class="btn" id="stopRecBtn" disabled>stop recording</button>
+        <button class="btn warn" id="playbackBtn" disabled>playback take</button>
+        <button class="btn warn" id="saveBtn" disabled>save mp3</button>
+      </div>
+      <div class="status" id="status">Tap a key to start audio.</div>
+      <div class="piano-wrap">
+        <div class="piano-scroll">
+          <div class="piano-shell" id="pianoShell">
+            <div class="piano" id="piano">
+              <div class="keybed" id="keybed"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card info">
+      <div class="head">guide</div>
+      <div class="list">
+        <div>Whites <code>Z X C V B N M , . / Q W E R T Y U I O P [ ]</code>. Blacks <code>S D G H J L ; 2 3 5 6 7 9 0 -</code>.</div>
+        <div><code>play song for anneliese</code> starts auto-play (80 bpm).</div>
+        <div>Record: <code>start recording</code> → <code>stop recording</code> → <code>playback take</code> or <code>save mp3</code>.</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="./lame.min.js"></script>
+<script>
+(() => {
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const NOTE_BASE = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+  const SONG_BPM = 80;
+  const TRANSPOSE_SEMITONES = 4;
+  const RECORDING_BITRATE = 192;
+
+  const MIN_NOTE = "G2";
+  const MAX_NOTE = "E6";
+
+  const appEl = document.querySelector(".app");
+  const statusEl = document.getElementById("status");
+  const reactiveBg = document.getElementById("reactiveBg");
+  const keybedEl = document.getElementById("keybed");
+  const playBtn = document.getElementById("playBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const recordBtn = document.getElementById("recordBtn");
+  const stopRecBtn = document.getElementById("stopRecBtn");
+  const playbackBtn = document.getElementById("playbackBtn");
+  const saveBtn = document.getElementById("saveBtn");
+
+  let playToken = 0;
+  let timers = [];
+  let isRecording = false;
+  let isEncoding = false;
+  let lastTake = null;
+  let recordedEvents = [];
+  let recordingStartedAt = 0;
+  let bgRelaxTimer = null;
+  let bgSpin = 0;
+  let hitCombo = 0;
+  let lastHitAt = 0;
+  let joltTimer = null;
+  const keysByNote = new Map();
+  const noteByKeyboardKey = new Map();
+  const pressedKeys = new Set();
+
+  const NOTES = rangeNotes(MIN_NOTE, MAX_NOTE);
+
+  class SoftPiano {
+    constructor(){
+      this.ctx = null;
+      this.master = null;
+      this.noiseBuffer = null;
+      this.captureNode = null;
+      this.captureSink = null;
+      this.recording = false;
+      this.recordedFrames = 0;
+      this.leftChunks = [];
+      this.rightChunks = [];
+    }
+
+    ensure(){
+      if(this.ctx) return;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new Ctx();
+
+      const master = this.ctx.createGain();
+      master.gain.value = 0.92;
+
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 5600;
+      lp.Q.value = 0.72;
+
+      const comp = this.ctx.createDynamicsCompressor();
+      comp.threshold.value = -20;
+      comp.knee.value = 20;
+      comp.ratio.value = 3;
+      comp.attack.value = 0.004;
+      comp.release.value = 0.24;
+
+      const dry = this.ctx.createGain();
+      dry.gain.value = 0.9;
+      const wet = this.ctx.createGain();
+      wet.gain.value = 0.14;
+      const rev = createReverb(this.ctx, 1.8, 2.0);
+
+      master.connect(dry);
+      master.connect(rev);
+      rev.connect(wet);
+      dry.connect(lp);
+      wet.connect(lp);
+      lp.connect(comp);
+      comp.connect(this.ctx.destination);
+
+      // Record post-processing mix while keeping the tap fully silent.
+      const captureNode = this.ctx.createScriptProcessor(4096, 2, 2);
+      const captureSink = this.ctx.createGain();
+      captureSink.gain.value = 0;
+      comp.connect(captureNode);
+      captureNode.connect(captureSink);
+      captureSink.connect(this.ctx.destination);
+      captureNode.onaudioprocess = (e) => {
+        if(!this.recording) return;
+        const input = e.inputBuffer;
+        const l = new Float32Array(input.getChannelData(0));
+        const r = input.numberOfChannels > 1 ? new Float32Array(input.getChannelData(1)) : l;
+        this.leftChunks.push(l);
+        this.rightChunks.push(r);
+        this.recordedFrames += l.length;
+      };
+
+      this.master = master;
+      this.noiseBuffer = createNoiseBuffer(this.ctx, 0.045);
+      this.captureNode = captureNode;
+      this.captureSink = captureSink;
+    }
+
+    async resume(){
+      this.ensure();
+      if(this.ctx.state !== "running") await this.ctx.resume();
+    }
+
+    play(note,{duration=0.9,velocity=0.84,time=null}={}){
+      this.ensure();
+      const ctx = this.ctx;
+      const start = time ?? ctx.currentTime;
+      const freq = noteToFreq(note);
+
+      const out = ctx.createGain();
+      out.gain.value = 0.0001;
+      out.connect(this.master);
+
+      const a = 0.003;
+      const d = 0.10;
+      const s = Math.max(0.05, velocity * 0.16);
+      const r = Math.max(0.12, duration * 0.22);
+      const off = start + duration;
+
+      out.gain.setValueAtTime(0.0001, start);
+      out.gain.linearRampToValueAtTime(Math.max(0.001, velocity), start + a);
+      out.gain.exponentialRampToValueAtTime(s, start + a + d);
+      out.gain.setValueAtTime(s, off);
+      out.gain.exponentialRampToValueAtTime(0.0001, off + r);
+
+      const osc1 = ctx.createOscillator();
+      osc1.type = "triangle";
+      osc1.frequency.setValueAtTime(freq, start);
+      osc1.detune.value = (Math.random() - 0.5) * 4;
+      const g1 = ctx.createGain(); g1.gain.value = 0.48;
+      osc1.connect(g1).connect(out);
+
+      const osc2 = ctx.createOscillator();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(freq * 2, start);
+      osc2.detune.value = (Math.random() - 0.5) * 8;
+      const g2 = ctx.createGain(); g2.gain.value = 0.15;
+      osc2.connect(g2).connect(out);
+
+      const osc3 = ctx.createOscillator();
+      osc3.type = "sine";
+      osc3.frequency.setValueAtTime(freq * 3.01, start);
+      const g3 = ctx.createGain(); g3.gain.value = 0.06;
+      osc3.connect(g3).connect(out);
+
+      const hammer = ctx.createBufferSource();
+      hammer.buffer = this.noiseBuffer;
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 2300;
+      const hg = ctx.createGain();
+      hg.gain.setValueAtTime(0.11 * velocity, start);
+      hg.gain.exponentialRampToValueAtTime(0.0001, start + 0.045);
+      hammer.connect(hp).connect(hg).connect(out);
+
+      const stopAt = off + r + 0.06;
+      [osc1,osc2,osc3].forEach(o=>{o.start(start);o.stop(stopAt);});
+      hammer.start(start);
+      hammer.stop(start + 0.05);
+    }
+
+    panic(){
+      if(!this.ctx || !this.master) return;
+      const t = this.ctx.currentTime;
+      this.master.gain.cancelScheduledValues(t);
+      this.master.gain.setTargetAtTime(0.0001, t, 0.03);
+      this.master.gain.setTargetAtTime(0.92, t + 0.15, 0.08);
+    }
+
+    startRecording(){
+      this.ensure();
+      this.leftChunks = [];
+      this.rightChunks = [];
+      this.recordedFrames = 0;
+      this.recording = true;
+    }
+
+    stopRecording(){
+      this.recording = false;
+      const left = joinChunks(this.leftChunks, this.recordedFrames);
+      const right = joinChunks(this.rightChunks, this.recordedFrames);
+      this.leftChunks = [];
+      this.rightChunks = [];
+      this.recordedFrames = 0;
+      return {left, right, sampleRate: this.ctx ? this.ctx.sampleRate : 44100};
+    }
+  }
+
+  const synth = new SoftPiano();
+
+  function joinChunks(chunks, total){
+    const out = new Float32Array(total);
+    let offset = 0;
+    for(const c of chunks){
+      out.set(c, offset);
+      offset += c.length;
+    }
+    return out;
+  }
+
+  function createNoiseBuffer(ctx, seconds){
+    const len = Math.floor(ctx.sampleRate * seconds);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for(let i=0;i<len;i++) ch[i] = (Math.random() * 2 - 1) * Math.exp(-i / len * 7.5);
+    return buf;
+  }
+
+  function createReverb(ctx, seconds, decay){
+    const len = Math.floor(ctx.sampleRate * seconds);
+    const imp = ctx.createBuffer(2, len, ctx.sampleRate);
+    for(let c=0;c<2;c++){
+      const d = imp.getChannelData(c);
+      for(let i=0;i<len;i++){
+        const n = (Math.random() * 2 - 1);
+        d[i] = n * Math.pow(1 - i / len, decay);
+      }
+    }
+    const con = ctx.createConvolver();
+    con.buffer = imp;
+    return con;
+  }
+
+  function noteToMidi(note){
+    const m = /^([A-G])([#b]?)(-?\d+)$/.exec(note);
+    if(!m) throw new Error(`Invalid note: ${note}`);
+    let sem = NOTE_BASE[m[1]];
+    if(m[2] === "#") sem += 1;
+    if(m[2] === "b") sem -= 1;
+    return (Number(m[3]) + 1) * 12 + sem;
+  }
+
+  function midiToNote(m){
+    const name = NOTE_NAMES[(m % 12 + 12) % 12];
+    const oct = Math.floor(m / 12) - 1;
+    return `${name}${oct}`;
+  }
+
+  function noteToFreq(note){
+    const midi = noteToMidi(note) + TRANSPOSE_SEMITONES;
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+
+  function rangeNotes(start, end){
+    const s = noteToMidi(start);
+    const e = noteToMidi(end);
+    const out = [];
+    for(let m=s;m<=e;m++) out.push(midiToNote(m));
+    return out;
+  }
+
+  function buildKeyboardMap(){
+    const bindings = [
+      // Lower row whites
+      ["z","C3"], ["x","D3"], ["c","E3"], ["v","F3"], ["b","G3"], ["n","A3"], ["m","B3"], [",","C4"], [".","D4"], ["/","E4"],
+      // Lower row blacks
+      ["s","C#3"], ["d","D#3"], ["g","F#3"], ["h","G#3"], ["j","A#3"], ["l","C#4"], [";","D#4"],
+      // Upper row whites
+      ["q","F4"], ["w","G4"], ["e","A4"], ["r","B4"], ["t","C5"], ["y","D5"], ["u","E5"], ["i","F5"], ["o","G5"], ["p","A5"], ["[","B5"], ["]","C6"],
+      // Upper row blacks
+      ["2","F#4"], ["3","G#4"], ["5","A#4"], ["6","C#5"], ["7","D#5"], ["9","F#5"], ["0","G#5"], ["-","A#5"],
+    ];
+    noteByKeyboardKey.clear();
+    for(const [key,note] of bindings){
+      if(NOTES.includes(note)) noteByKeyboardKey.set(key, note);
+    }
+  }
+
+  function keyDims(){
+    if(window.innerWidth < 560){
+      return {ww:34,bw:22,wh:165,bh:104};
+    }
+    return {ww:44,bw:28,wh:220,bh:136};
+  }
+
+  function buildKeys(){
+    keybedEl.innerHTML = "";
+    keysByNote.clear();
+
+    const {ww,bw,wh,bh} = keyDims();
+    let whiteIndex = 0;
+
+    const whiteCount = NOTES.filter(n=>!n.includes("#")).length;
+    keybedEl.style.width = `${whiteCount * ww}px`;
+    keybedEl.style.height = `${wh}px`;
+
+    const keyHintByNote = {};
+    for(const [k,n] of noteByKeyboardKey.entries()){
+      if(!keyHintByNote[n]) keyHintByNote[n] = k;
+    }
+
+    for(const note of NOTES){
+      const sharp = note.includes("#");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `pkey ${sharp ? "black" : "white"}`;
+      btn.dataset.note = note;
+
+      if(sharp){
+        const left = whiteIndex * ww - bw / 2;
+        btn.style.left = `${left}px`;
+        btn.style.top = "0";
+        btn.style.width = `${bw}px`;
+        btn.style.height = `${bh}px`;
+      } else {
+        const left = whiteIndex * ww;
+        btn.style.left = `${left}px`;
+        btn.style.top = "0";
+        btn.style.width = `${ww}px`;
+        btn.style.height = `${wh}px`;
+        whiteIndex++;
+      }
+
+      const label = document.createElement("span");
+      label.className = "klabel";
+      label.textContent = keyHintByNote[note] ? keyHintByNote[note].toUpperCase() : "";
+      btn.appendChild(label);
+
+      const trigger = async (e) => {
+        e.preventDefault();
+        await playLive(note, 0.74, 0.82);
+      };
+      btn.addEventListener("pointerdown", trigger);
+
+      keybedEl.appendChild(btn);
+      keysByNote.set(note, btn);
+    }
+  }
+
+  function flashKey(note, ms=170){
+    const el = keysByNote.get(note);
+    if(!el) return;
+    el.classList.add("active");
+    setTimeout(()=>el.classList.remove("active"), ms);
+  }
+
+  function reactBackground(note, velocity=0.82){
+    if(!reactiveBg) return;
+
+    const now = performance.now();
+    const gap = lastHitAt ? now - lastHitAt : 999;
+    lastHitAt = now;
+    if(gap < 125) hitCombo = Math.min(16, hitCombo + 1);
+    else if(gap > 260) hitCombo = Math.max(0, hitCombo - 2);
+
+    const m = noteToMidi(note);
+    const pitchNorm = Math.max(0, Math.min(1, (m - 43) / 39));
+    const x = 8 + pitchNorm * 84;
+    const y = 10 + (1 - pitchNorm) * 68;
+    const hue = 296 + ((m * 11 + hitCombo * 7) % 104);
+    const energy = Math.max(0.22, Math.min(1.16, 0.24 + velocity * 0.86 + hitCombo * 0.05));
+    const flash = Math.min(1, 0.22 + velocity * 0.52 + hitCombo * 0.03);
+    const spread = 6 + hitCombo * 0.8;
+
+    bgSpin += (Math.random() < 0.5 ? -1 : 1) * (0.4 + velocity * 1.7 + hitCombo * 0.08);
+    if(bgSpin > 22) bgSpin = 22;
+    if(bgSpin < -22) bgSpin = -22;
+
+    reactiveBg.style.setProperty("--h", `${hue.toFixed(0)}`);
+    reactiveBg.style.setProperty("--energy", energy.toFixed(2));
+    reactiveBg.style.setProperty("--flash", flash.toFixed(2));
+    reactiveBg.style.setProperty("--spin", `${bgSpin.toFixed(2)}deg`);
+    reactiveBg.style.setProperty("--x1", `${(x + (Math.random() * spread * 2 - spread)).toFixed(2)}%`);
+    reactiveBg.style.setProperty("--y1", `${(y + (Math.random() * (spread * 1.8) - spread * 0.9)).toFixed(2)}%`);
+    reactiveBg.style.setProperty("--x2", `${(100 - x + (Math.random() * spread * 2 - spread)).toFixed(2)}%`);
+    reactiveBg.style.setProperty("--y2", `${(16 + Math.random() * 58).toFixed(2)}%`);
+
+    if(bgRelaxTimer) clearTimeout(bgRelaxTimer);
+    bgRelaxTimer = setTimeout(() => {
+      hitCombo = Math.max(0, hitCombo - 1);
+      bgSpin *= 0.8;
+      reactiveBg.style.setProperty("--energy", "0.18");
+      reactiveBg.style.setProperty("--flash", "0.24");
+      reactiveBg.style.setProperty("--spin", `${bgSpin.toFixed(2)}deg`);
+    }, 140);
+
+    if(appEl){
+      appEl.style.setProperty("--jx", `${(Math.random() * 5 - 2.5).toFixed(2)}px`);
+      appEl.style.setProperty("--jy", `${(Math.random() * 4 - 2).toFixed(2)}px`);
+      appEl.style.setProperty("--jr", `${(Math.random() * 1.6 - 0.8).toFixed(2)}deg`);
+      appEl.classList.remove("hit-jolt");
+      void appEl.offsetWidth;
+      appEl.classList.add("hit-jolt");
+      if(joltTimer) clearTimeout(joltTimer);
+      joltTimer = setTimeout(() => appEl.classList.remove("hit-jolt"), 160);
+    }
+
+    while(reactiveBg.childElementCount > 150 && reactiveBg.firstElementChild){
+      reactiveBg.firstElementChild.remove();
+    }
+
+    const pulseCount = 1 + (energy > 0.62 ? 1 : 0) + (hitCombo > 8 ? 1 : 0);
+    for(let i=0;i<pulseCount;i++){
+      const pulse = document.createElement("span");
+      pulse.className = "note-pulse";
+      pulse.style.left = `${(x + (Math.random() * 12 - 6)).toFixed(2)}%`;
+      pulse.style.top = `${(y + (Math.random() * 10 - 5)).toFixed(2)}%`;
+      pulse.style.setProperty("--s", `${Math.round(40 + velocity * 104 + i * 16 + hitCombo * 2)}px`);
+      pulse.style.setProperty("--h", `${(hue + i * 14).toFixed(0)}`);
+      pulse.style.setProperty("--dx", `${Math.round(Math.random() * 72 - 36)}px`);
+      pulse.style.setProperty("--dy", `${Math.round(-(10 + Math.random() * 40 + i * 8))}px`);
+      pulse.style.setProperty("--d", `${Math.round(470 + Math.random() * 420 + i * 90)}ms`);
+      pulse.addEventListener("animationend", () => pulse.remove(), {once:true});
+      reactiveBg.appendChild(pulse);
+    }
+
+    const sparkCount = Math.min(16, 3 + Math.floor(velocity * 6) + Math.floor(hitCombo * 0.6));
+    for(let i=0;i<sparkCount;i++){
+      const spark = document.createElement("span");
+      spark.className = "bg-spark";
+      spark.style.left = `${(x + (Math.random() * 16 - 8)).toFixed(2)}%`;
+      spark.style.top = `${(y + (Math.random() * 16 - 8)).toFixed(2)}%`;
+      spark.style.setProperty("--size", `${Math.round(4 + Math.random() * 7 + hitCombo * 0.12)}px`);
+      spark.style.setProperty("--h", `${(hue + Math.random() * 34 - 17).toFixed(0)}`);
+      spark.style.setProperty("--dx", `${Math.round(Math.random() * 180 - 90)}px`);
+      spark.style.setProperty("--dy", `${Math.round(Math.random() * -170)}px`);
+      spark.style.setProperty("--d", `${Math.round(360 + Math.random() * 520)}ms`);
+      spark.addEventListener("animationend", () => spark.remove(), {once:true});
+      reactiveBg.appendChild(spark);
+    }
+
+    const streakCount = hitCombo > 4 ? (hitCombo > 10 ? 2 : 1) : (velocity > 0.9 ? 1 : 0);
+    for(let i=0;i<streakCount;i++){
+      const streak = document.createElement("span");
+      streak.className = "bg-streak";
+      streak.style.left = `${(x + (Math.random() * 18 - 9)).toFixed(2)}%`;
+      streak.style.top = `${(y + (Math.random() * 24 - 12)).toFixed(2)}%`;
+      streak.style.setProperty("--w", `${Math.round(110 + Math.random() * 150 + hitCombo * 3)}px`);
+      streak.style.setProperty("--h", `${(hue + Math.random() * 46 - 23).toFixed(0)}`);
+      streak.style.setProperty("--a", `${Math.round(Math.random() * 70 - 35)}deg`);
+      streak.style.setProperty("--dx", `${Math.round(Math.random() * 44 - 22)}px`);
+      streak.style.setProperty("--dy", `${Math.round(Math.random() * 24 - 12)}px`);
+      streak.style.setProperty("--d", `${Math.round(280 + Math.random() * 260)}ms`);
+      streak.addEventListener("animationend", () => streak.remove(), {once:true});
+      reactiveBg.appendChild(streak);
+    }
+  }
+
+  function recordEvent(note, duration, velocity){
+    if(!isRecording) return;
+    const at = (performance.now() - recordingStartedAt) / 1000;
+    recordedEvents.push({at, note, duration, velocity});
+  }
+
+  function triggerNote(note, duration=0.82, velocity=0.82, shouldRecord=true){
+    synth.play(note,{duration,velocity});
+    flashKey(note, Math.min(260, duration * 220));
+    reactBackground(note, velocity);
+    if(shouldRecord) recordEvent(note, duration, velocity);
+  }
+
+  async function playLive(note,duration=0.82,velocity=0.82){
+    await synth.resume();
+    triggerNote(note, duration, velocity, true);
+  }
+
+  function songForAnnelieseEvents(){
+    // Gentle opening phrase for "Song for Anneliese":
+    // 3/4 bass + chord pulse with sparse singing melody.
+    const bars = [
+      {bass:["D3","A3","D4"], chord:["F#4","A4","C#5"], melody:[{at:0, note:"F#5", dur:2.7}]},
+      {bass:["G2","D3","G3"], chord:["B3","D4","F#4"], melody:[{at:0, note:"G5", dur:2.7}]},
+      {bass:["D3","A3","D4"], chord:["F#4","A4","C#5"], melody:[{at:0, note:"A5", dur:1.8}, {at:2, note:"F#5", dur:0.9}]},
+      {bass:["A2","E3","A3"], chord:["C#4","E4","G4"], melody:[{at:0, note:"E5", dur:2.7}]},
+      {bass:["D3","A3","D4"], chord:["F#4","A4","C#5"], melody:[{at:0, note:"F#5", dur:2.7}]},
+      {bass:["G2","D3","G3"], chord:["B3","D4","F#4"], melody:[{at:0, note:"G5", dur:2.7}]},
+      {bass:["E2","B2","E3"], chord:["G3","B3","D4"], melody:[{at:0, note:"A5", dur:1.8}, {at:2, note:"B5", dur:0.9}]},
+      {bass:["A2","E3","A3"], chord:["C#4","E4","G4"], melody:[{at:0, note:"A5", dur:2.7}]},
+      {bass:["D3","A3","D4"], chord:["F#4","A4","C#5"], melody:[{at:0, note:"F#5", dur:1.3}, {at:1.5, note:"E5", dur:1.2}]},
+      {bass:["G2","D3","G3"], chord:["B3","D4","F#4"], melody:[{at:0, note:"D5", dur:1.3}, {at:1.5, note:"C#5", dur:1.2}]},
+      {bass:["D3","A3","D4"], chord:["F#4","A4","C#5"], melody:[{at:0, note:"B4", dur:1.3}, {at:1.5, note:"A4", dur:1.2}]},
+      {bass:["A2","E3","A3"], chord:["C#4","E4","G4"], melody:[{at:0, note:"G4", dur:2.7}]},
+    ];
+
+    const events = [];
+    for(let i=0;i<bars.length;i++){
+      const t = i * 3;
+      const bar = bars[i];
+      events.push({beat:t + 0, notes:[bar.bass[0]], dur:0.95, vel:0.42});
+      events.push({beat:t + 1, notes:[bar.bass[1], ...bar.chord], dur:0.92, vel:0.34});
+      events.push({beat:t + 2, notes:[bar.bass[2], ...bar.chord], dur:0.92, vel:0.34});
+      for(const m of bar.melody){
+        events.push({beat:t + m.at, notes:[m.note], dur:m.dur, vel:0.78});
+      }
+    }
+    events.push({beat:bars.length * 3, notes:["D3","A3","D4","F#4","A4"], dur:2.5, vel:0.5});
+    return events.sort((a,b)=>a.beat-b.beat);
+  }
+
+  const SONG = songForAnnelieseEvents();
+  const totalBeats = SONG[SONG.length - 1].beat + SONG[SONG.length - 1].dur;
+
+  function refreshRecorderButtons(){
+    const hasTake = !!lastTake;
+    const hasEvents = hasTake && lastTake.events.length > 0;
+    const hasAudio = hasTake && hasEvents && lastTake.audio.left.length >= 1024;
+    recordBtn.disabled = isRecording || isEncoding;
+    stopRecBtn.disabled = !isRecording || isEncoding;
+    playbackBtn.disabled = isRecording || isEncoding || !hasEvents;
+    saveBtn.disabled = isRecording || isEncoding || !hasAudio;
+  }
+
+  function stopPlayback(user=true){
+    playToken++;
+    timers.forEach(clearTimeout);
+    timers = [];
+    stopBtn.disabled = true;
+    playBtn.disabled = false;
+    if(user) synth.panic();
+    refreshRecorderButtons();
+    if(user){
+      statusEl.innerHTML = isRecording
+        ? "<strong>Recording…</strong> Auto-play stopped."
+        : "Stopped.";
+    }
+  }
+
+  async function playSongForAnneliese(){
+    try{
+      await synth.resume();
+    }catch{
+      statusEl.innerHTML = "Audio start failed. Tap a key, then play.";
+      return;
+    }
+    stopPlayback(false);
+
+    const bpm = SONG_BPM;
+    const spb = 60 / bpm;
+    const token = ++playToken;
+
+    playBtn.disabled = true;
+    stopBtn.disabled = false;
+    statusEl.innerHTML = `<strong>Auto-playing Song for Anneliese…</strong> ${bpm} bpm.`;
+
+    for(const ev of SONG){
+      const ms = ev.beat * spb * 1000;
+      const id = setTimeout(() => {
+        if(token !== playToken) return;
+        for(const note of ev.notes){
+          triggerNote(note, ev.dur * spb, ev.vel, true);
+        }
+      }, ms);
+      timers.push(id);
+    }
+
+    const done = setTimeout(() => {
+      if(token !== playToken) return;
+      playBtn.disabled = false;
+      stopBtn.disabled = true;
+      refreshRecorderButtons();
+      statusEl.innerHTML = isRecording
+        ? "<strong>Recording…</strong> Auto-play finished."
+        : "Finished.";
+    }, totalBeats * spb * 1000 + 700);
+    timers.push(done);
+  }
+
+  function floatToInt16(src){
+    const out = new Int16Array(src.length);
+    for(let i=0;i<src.length;i++){
+      const s = Math.max(-1, Math.min(1, src[i]));
+      out[i] = s < 0 ? Math.round(s * 32768) : Math.round(s * 32767);
+    }
+    return out;
+  }
+
+  function encodeMp3(left, right, sampleRate){
+    if(typeof lamejs === "undefined" || !lamejs.Mp3Encoder){
+      throw new Error("MP3 encoder not available");
+    }
+    const len = Math.min(left.length, right.length);
+    if(len < 1024){
+      throw new Error("Recording is too short");
+    }
+
+    const left16 = floatToInt16(left.subarray(0, len));
+    const right16 = floatToInt16(right.subarray(0, len));
+    const encoder = new lamejs.Mp3Encoder(2, sampleRate, RECORDING_BITRATE);
+    const mp3Chunks = [];
+    const blockSize = 1152;
+
+    for(let i=0;i<len;i+=blockSize){
+      const l = left16.subarray(i, Math.min(i + blockSize, len));
+      const r = right16.subarray(i, Math.min(i + blockSize, len));
+      const part = encoder.encodeBuffer(l, r);
+      if(part.length) mp3Chunks.push(new Uint8Array(part));
+    }
+
+    const flush = encoder.flush();
+    if(flush.length) mp3Chunks.push(new Uint8Array(flush));
+    return new Blob(mp3Chunks, {type:"audio/mpeg"});
+  }
+
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 1200);
+  }
+
+  async function startRecording(){
+    if(isRecording || isEncoding) return;
+    try{
+      await synth.resume();
+    }catch{
+      statusEl.textContent = "Audio start failed.";
+      return;
+    }
+
+    lastTake = null;
+    recordedEvents = [];
+    recordingStartedAt = performance.now();
+    synth.startRecording();
+    isRecording = true;
+    refreshRecorderButtons();
+    statusEl.innerHTML = "<strong>Recording…</strong>";
+  }
+
+  function stopRecordingSession(){
+    if(!isRecording || isEncoding) return;
+    isRecording = false;
+    const audioTake = synth.stopRecording();
+    const events = recordedEvents.slice().sort((a,b)=>a.at-b.at);
+
+    let eventDuration = 0;
+    for(const ev of events){
+      eventDuration = Math.max(eventDuration, ev.at + ev.duration);
+    }
+    const audioDuration = audioTake.left.length / audioTake.sampleRate;
+    lastTake = {
+      audio: audioTake,
+      events,
+      duration: Math.max(eventDuration, audioDuration),
+    };
+    refreshRecorderButtons();
+
+    if(events.length === 0){
+      statusEl.textContent = "No notes captured.";
+      return;
+    }
+
+    statusEl.innerHTML = `<strong>Take ready.</strong> ${events.length} notes.`;
+  }
+
+  async function playRecordedTake(){
+    if(isRecording || isEncoding) return;
+    if(!lastTake || lastTake.events.length === 0){
+      statusEl.textContent = "No take yet.";
+      return;
+    }
+
+    try{
+      await synth.resume();
+    }catch{
+      statusEl.textContent = "Audio start failed. Tap a key, then try again.";
+      return;
+    }
+
+    stopPlayback(false);
+    const token = ++playToken;
+    playBtn.disabled = true;
+    stopBtn.disabled = false;
+    recordBtn.disabled = true;
+    stopRecBtn.disabled = true;
+    playbackBtn.disabled = true;
+    saveBtn.disabled = true;
+    statusEl.innerHTML = "<strong>Playing your take…</strong>";
+
+    for(const ev of lastTake.events){
+      const id = setTimeout(() => {
+        if(token !== playToken) return;
+        triggerNote(ev.note, ev.duration, ev.velocity, false);
+      }, ev.at * 1000);
+      timers.push(id);
+    }
+
+    const done = setTimeout(() => {
+      if(token !== playToken) return;
+      playBtn.disabled = false;
+      stopBtn.disabled = true;
+      refreshRecorderButtons();
+      statusEl.innerHTML = "Playback finished.";
+    }, lastTake.duration * 1000 + 420);
+    timers.push(done);
+  }
+
+  async function saveTakeMp3(){
+    if(isRecording || isEncoding) return;
+    if(!lastTake){
+      statusEl.textContent = "No take yet.";
+      return;
+    }
+
+    isEncoding = true;
+    refreshRecorderButtons();
+    statusEl.textContent = "Encoding MP3…";
+
+    try{
+      const mp3 = encodeMp3(lastTake.audio.left, lastTake.audio.right, lastTake.audio.sampleRate);
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      downloadBlob(mp3, `anneliese-piano-${stamp}.mp3`);
+      const kb = Math.max(1, Math.round(mp3.size / 1024));
+      statusEl.innerHTML = `<strong>Saved:</strong> anneliese-piano-${stamp}.mp3 (${kb} KB).`;
+    }catch(err){
+      statusEl.textContent = `Save failed: ${err && err.message ? err.message : "unknown error"}.`;
+    }finally{
+      isEncoding = false;
+      refreshRecorderButtons();
+    }
+  }
+
+  function bindKeyboard(){
+    document.addEventListener("keydown", async (e) => {
+      const key = e.key.toLowerCase();
+      if(!noteByKeyboardKey.has(key)) return;
+      if(e.repeat || pressedKeys.has(key)) return;
+      const active = document.activeElement;
+      if(active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+      pressedKeys.add(key);
+      const note = noteByKeyboardKey.get(key);
+      await playLive(note, 0.74, 0.8);
+    });
+
+    document.addEventListener("keyup", (e) => {
+      pressedKeys.delete(e.key.toLowerCase());
+    });
+  }
+
+  function bindUI(){
+    playBtn.addEventListener("click", () => playSongForAnneliese());
+    stopBtn.addEventListener("click", () => stopPlayback(true));
+    recordBtn.addEventListener("click", () => startRecording());
+    stopRecBtn.addEventListener("click", () => stopRecordingSession());
+    playbackBtn.addEventListener("click", () => playRecordedTake());
+    saveBtn.addEventListener("click", () => saveTakeMp3());
+    window.addEventListener("resize", () => buildKeys());
+  }
+
+  function init(){
+    buildKeyboardMap();
+    buildKeys();
+    bindKeyboard();
+    bindUI();
+    refreshRecorderButtons();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
