@@ -1,0 +1,2522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>storybored</title>
+  <style>
+    :root {
+      --bg: #efe6da;
+      --panel: rgba(255, 251, 246, 0.86);
+      --ink: #1d1714;
+      --muted: #74685f;
+      --line: rgba(29, 23, 20, 0.12);
+      --board-a: #885836;
+      --board-b: #6b442b;
+      --note: #f2d86f;
+      --frame: #fff8ef;
+      --shadow: 0 24px 54px rgba(52, 32, 20, 0.22);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background:
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.7), transparent 35%),
+        linear-gradient(180deg, #f6f0e7 0%, var(--bg) 100%);
+      color: var(--ink);
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-rows: 34px 1fr;
+      height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 10px;
+      background: rgba(247, 241, 232, 0.86);
+      border-bottom: 1px solid rgba(29, 23, 20, 0.08);
+      backdrop-filter: blur(14px);
+      font-size: 0.78rem;
+      z-index: 10;
+    }
+
+    .topbar__title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .topbar__status {
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .stage {
+      position: relative;
+      min-height: 0;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.2), transparent 40%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.04), transparent 24%);
+    }
+
+    .stage.is-draw-mode .floating-tools {
+      background: rgba(255, 244, 236, 0.92);
+      border-color: rgba(140, 68, 42, 0.24);
+      box-shadow: 0 16px 36px rgba(140, 68, 42, 0.16);
+    }
+
+    .stage.is-draw-mode .board {
+      box-shadow:
+        var(--shadow),
+        0 0 0 3px rgba(255, 248, 239, 0.34),
+        0 0 0 12px rgba(140, 68, 42, 0.14);
+    }
+
+    .viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+      overscroll-behavior: none;
+    }
+
+    .viewport.is-panning {
+      cursor: grabbing;
+    }
+
+    .viewport.is-draw-mode {
+      cursor: crosshair;
+    }
+
+    .board {
+      position: absolute;
+      width: 3200px;
+      height: 2200px;
+      border-radius: 30px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 22% 20%, rgba(255, 255, 255, 0.12), transparent 24%),
+        radial-gradient(circle at 80% 68%, rgba(255, 255, 255, 0.08), transparent 20%),
+        linear-gradient(180deg, var(--board-a) 0%, var(--board-b) 100%);
+      border: 1px solid rgba(52, 32, 20, 0.28);
+      box-shadow: var(--shadow);
+      transform-origin: top left;
+      will-change: transform;
+      contain: layout paint style;
+    }
+
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 10px),
+        repeating-linear-gradient(-35deg, rgba(0, 0, 0, 0.02) 0 2px, transparent 2px 12px);
+      pointer-events: none;
+    }
+
+    .board-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      touch-action: none;
+    }
+
+    .board-canvas.is-drawing {
+      pointer-events: auto;
+    }
+
+    .cards-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .floating-tools {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      max-width: calc(100% - 24px);
+      padding: 8px;
+      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+      box-shadow: 0 14px 32px rgba(52, 32, 20, 0.12);
+      backdrop-filter: blur(14px);
+    }
+
+    .view-chip,
+    .shortcut-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+      white-space: nowrap;
+    }
+
+    .view-chip {
+      overflow: hidden;
+    }
+
+    .view-chip__fit {
+      display: inline-flex;
+      align-items: center;
+      height: 34px;
+      padding: 0 12px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      border-right: 1px solid rgba(29, 23, 20, 0.08);
+    }
+
+    .view-chip__zoom {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      padding: 0 12px;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      cursor: ew-resize;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .shortcut-chip {
+      gap: 10px;
+      padding: 0 12px;
+      color: var(--muted);
+    }
+
+    .shortcut-chip__label {
+      font-size: 0.76rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .shortcut-chip__group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ink);
+    }
+
+    .shortcut-chip__group span {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border-radius: 999px;
+      background: #fffdf9;
+      color: var(--ink);
+      border: 1px solid rgba(29, 23, 20, 0.12);
+      transition: transform 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+    }
+
+    .btn svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(29, 23, 20, 0.24);
+    }
+
+    .btn--primary {
+      background: var(--ink);
+      color: #fff8ef;
+      border-color: var(--ink);
+    }
+
+    .btn--active {
+      background: #f4d7ca;
+      border-color: rgba(140, 68, 42, 0.34);
+    }
+
+    .btn--icon {
+      min-width: 34px;
+      padding: 0;
+    }
+
+    .btn.is-ghosted {
+      opacity: 0.38;
+      pointer-events: none;
+    }
+
+    .swatch {
+      width: 26px;
+      height: 26px;
+      margin: 4px 0;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.94);
+      box-shadow: 0 0 0 1px rgba(29, 23, 20, 0.14);
+      padding: 0;
+    }
+
+    .swatch--white {
+      background: #ffffff;
+    }
+
+    .swatch--black {
+      background: #101010;
+    }
+
+    .swatch.is-active {
+      box-shadow: 0 0 0 2px rgba(29, 23, 20, 0.56);
+    }
+
+    .color-picker {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      border: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .rainbow-button {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 999px;
+      background: conic-gradient(
+        #ff4d4d,
+        #ff9f1c,
+        #ffe66d,
+        #2ec27e,
+        #00c2ff,
+        #5c7cfa,
+        #d633ff,
+        #ff4d4d
+      );
+      border: 2px solid rgba(255, 255, 255, 0.94);
+      box-shadow: 0 0 0 1px rgba(29, 23, 20, 0.14);
+    }
+
+    .rainbow-button.is-active {
+      box-shadow: 0 0 0 2px rgba(29, 23, 20, 0.56);
+    }
+
+    .help-panel {
+      position: absolute;
+      top: 64px;
+      left: 12px;
+      z-index: 19;
+      width: min(360px, calc(100vw - 24px));
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 251, 246, 0.92);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+      box-shadow: 0 16px 38px rgba(52, 32, 20, 0.16);
+      backdrop-filter: blur(16px);
+    }
+
+    .help-panel[hidden] {
+      display: none;
+    }
+
+    .help-panel h2 {
+      margin: 0 0 10px;
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    .help-section + .help-section {
+      margin-top: 12px;
+    }
+
+    .help-section__title {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 0.74rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .help-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .help-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-size: 0.9rem;
+    }
+
+    .help-row span:last-child {
+      text-align: right;
+      color: var(--muted);
+    }
+
+    kbd {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 8px;
+      border-radius: 8px;
+      background: #fffdf9;
+      border: 1px solid rgba(29, 23, 20, 0.1);
+      box-shadow: 0 1px 0 rgba(29, 23, 20, 0.04);
+      font-size: 0.82rem;
+      font-family: inherit;
+      color: var(--ink);
+    }
+
+    .card {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      padding-bottom: 18px;
+      border-radius: 16px;
+      border: 1px solid rgba(29, 23, 20, 0.12);
+      box-shadow: 0 14px 28px rgba(52, 32, 20, 0.18);
+      pointer-events: auto;
+      cursor: default;
+      will-change: transform;
+      contain: layout paint style;
+      overflow: hidden;
+    }
+
+    .card.is-new {
+      animation: card-pop 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    @keyframes card-pop {
+      0% {
+        opacity: 0;
+        filter: saturate(0.92);
+      }
+
+      100% {
+        opacity: 1;
+        filter: saturate(1);
+      }
+    }
+
+    .card--note {
+      width: 280px;
+      background: linear-gradient(180deg, #f8e690 0%, var(--note) 100%);
+    }
+
+    .card--frame {
+      width: 390px;
+      background: linear-gradient(180deg, #fffdf9 0%, var(--frame) 100%);
+    }
+
+    .card.is-selected {
+      box-shadow: 0 16px 34px rgba(52, 32, 20, 0.26), 0 0 0 2px rgba(255, 255, 255, 0.82);
+    }
+
+    .card__header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+    }
+
+    .card__handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 30px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.44);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+      color: var(--card-ink, var(--ink));
+      cursor: grab;
+      touch-action: none;
+    }
+
+    .card__dots {
+      width: 22px;
+      height: 12px;
+      background:
+        radial-gradient(circle, currentColor 1.4px, transparent 1.8px) 0 0 / 8px 6px repeat;
+    }
+
+    .card__actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+
+    .icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 30px;
+      padding: 0;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.44);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+      color: var(--card-ink, rgba(29, 23, 20, 0.8));
+    }
+
+    .icon-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .icon-btn.is-active {
+      background: #f4d7ca;
+      border-color: rgba(140, 68, 42, 0.34);
+    }
+
+    .frame-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+      padding: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.54);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+    }
+
+
+    .ratio-btn {
+      width: auto;
+      min-width: 48px;
+      padding: 0 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .card__title,
+    .card__body {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      resize: none;
+      background: transparent;
+      color: var(--card-ink, var(--ink));
+      font-family: Arial, sans-serif;
+    }
+
+    .card__title::placeholder,
+    .card__body::placeholder {
+      color: var(--card-placeholder, rgba(29, 23, 20, 0.38));
+    }
+
+    .card__title {
+      flex: 0 0 auto;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .card__body {
+      flex: 1 1 auto;
+      min-height: 0;
+      line-height: 1.42;
+      overflow: auto;
+    }
+
+    .frame-canvas {
+      width: 100%;
+      height: 220px;
+      flex: 0 0 auto;
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(249, 244, 236, 0.96), rgba(245, 237, 226, 0.96)),
+        repeating-linear-gradient(0deg, transparent 0 38px, rgba(29, 23, 20, 0.04) 38px 39px),
+        repeating-linear-gradient(90deg, transparent 0 38px, rgba(29, 23, 20, 0.04) 38px 39px);
+      border: 1px solid rgba(29, 23, 20, 0.12);
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .card__resize {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.28);
+      border: 1px solid rgba(29, 23, 20, 0.08);
+      color: var(--card-ink, rgba(29, 23, 20, 0.48));
+      cursor: nwse-resize;
+      touch-action: none;
+    }
+
+    .card__resize::before {
+      content: "";
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+    }
+
+    @media (max-width: 760px) {
+      .floating-tools {
+        right: 12px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar__title">storybored</div>
+      <div class="topbar__status" id="save-status">Scroll to pan. Pinch to zoom. Double-click to add. Local autosave on.</div>
+    </header>
+
+    <main class="stage">
+      <div class="floating-tools">
+        <button class="btn btn--primary" type="button" data-add="note">+ Note</button>
+        <button class="btn" type="button" data-add="frame">+ Frame</button>
+        <div class="view-chip">
+          <button class="view-chip__fit" type="button" id="reset-view">Fit</button>
+          <span class="view-chip__zoom" id="zoom-readout">100%</span>
+        </div>
+        <button class="btn" type="button" id="board-draw-toggle" aria-pressed="false"></button>
+        <button class="btn btn--icon btn--active" type="button" id="ink-toggle" aria-label="Ink">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5-4-4L4.5 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>
+        </button>
+        <button class="btn btn--icon" type="button" id="eraser-toggle" aria-label="Erase">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15l6.5-6.5a2.5 2.5 0 0 1 3.5 0l2.5 2.5a2.5 2.5 0 0 1 0 3.5L15 19H9z"></path><path d="M4 19h16"></path></svg>
+        </button>
+        <button class="swatch swatch--black is-active" type="button" data-color="#111111" aria-label="Black"></button>
+        <button class="swatch swatch--white" type="button" data-color="#ffffff" aria-label="White"></button>
+        <button class="rainbow-button" type="button" id="color-picker-button" aria-label="Pick a color"></button>
+        <input class="color-picker" id="color-picker" type="color" value="#1f1916" aria-label="Pick color">
+        <input class="color-picker" id="card-color-picker" type="color" value="#f2d86f" aria-label="Change card color">
+        <span class="shortcut-chip" aria-label="Keyboard shortcuts">
+          <span class="shortcut-chip__label">Shortcuts</span>
+          <span class="shortcut-chip__group"><kbd>N</kbd><span>Note</span></span>
+          <span class="shortcut-chip__group"><kbd>F</kbd><span>Frame</span></span>
+          <span class="shortcut-chip__group"><kbd>D</kbd><span>Draw</span></span>
+        </span>
+        <button class="btn" type="button" id="help-toggle" aria-expanded="false">Help</button>
+        <button class="btn" type="button" id="clear-board">Clear Ink</button>
+        <button class="btn btn--primary" type="button" id="save-jpeg">Save JPEG</button>
+      </div>
+
+      <aside class="help-panel" id="help-panel" hidden>
+        <h2>Quick Help</h2>
+        <div class="help-section">
+          <div class="help-section__title">Trackpad</div>
+          <div class="help-list">
+            <div class="help-row"><span>Two-finger scroll</span><span>Pan board</span></div>
+            <div class="help-row"><span>Pinch or Shift + scroll</span><span>Zoom board</span></div>
+            <div class="help-row"><span>Double-click empty space</span><span>Add note</span></div>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title">Keyboard</div>
+          <div class="help-list">
+            <div class="help-row"><span><kbd>N</kbd></span><span>Add note</span></div>
+            <div class="help-row"><span><kbd>F</kbd></span><span>Add frame</span></div>
+            <div class="help-row"><span><kbd>D</kbd></span><span>Toggle board draw</span></div>
+            <div class="help-row"><span><kbd>Delete</kbd></span><span>Delete selected</span></div>
+            <div class="help-row"><span><kbd>Cmd/Ctrl</kbd> + <kbd>D</kbd></span><span>Duplicate selected</span></div>
+            <div class="help-row"><span><kbd>Esc</kbd></span><span>Exit draw mode</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="viewport" id="viewport">
+        <div class="board" id="board">
+          <canvas class="board-canvas" id="board-canvas" width="3200" height="2200"></canvas>
+          <div class="cards-layer" id="cards-layer"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "storybored-v2";
+    const BOARD_WIDTH = 3200;
+    const BOARD_HEIGHT = 2200;
+    const NOTE_WIDTH = 280;
+    const FRAME_WIDTH = 390;
+    const NOTE_HEIGHT_FALLBACK = 220;
+    const FRAME_HEIGHT_FALLBACK = 440;
+    const FRAME_SKETCH_HEIGHT = 220;
+    const MIN_ZOOM = 0.18;
+    const MAX_ZOOM = 1.9;
+
+    const stage = document.querySelector(".stage");
+    const viewport = document.getElementById("viewport");
+    const board = document.getElementById("board");
+    const boardCanvas = document.getElementById("board-canvas");
+    const boardCtx = boardCanvas.getContext("2d");
+    const cardsLayer = document.getElementById("cards-layer");
+    const helpPanel = document.getElementById("help-panel");
+    const helpToggleButton = document.getElementById("help-toggle");
+    const saveStatus = document.getElementById("save-status");
+    const zoomReadout = document.getElementById("zoom-readout");
+    const boardDrawToggle = document.getElementById("board-draw-toggle");
+    const inkToggle = document.getElementById("ink-toggle");
+    const eraserToggle = document.getElementById("eraser-toggle");
+    const resetViewButton = document.getElementById("reset-view");
+    const clearBoardButton = document.getElementById("clear-board");
+    const saveJpegButton = document.getElementById("save-jpeg");
+    const colorButtons = Array.from(document.querySelectorAll("[data-color]"));
+    const colorPickerButton = document.getElementById("color-picker-button");
+    const colorPicker = document.getElementById("color-picker");
+    const cardColorPicker = document.getElementById("card-color-picker");
+
+    const DEFAULT_NOTE_COLOR = "#f2d86f";
+    const DEFAULT_FRAME_COLOR = "#fff8ef";
+    const NOTE_MIN_WIDTH = 220;
+    const NOTE_MIN_HEIGHT = 190;
+    const FRAME_MIN_WIDTH = 320;
+    const FRAME_MIN_HEIGHT = 360;
+    const FRAME_BODY_MIN_HEIGHT = 96;
+    const DEFAULT_FRAME_ASPECT = "16:9";
+    const BOARD_ERASE_THRESHOLD = 10;
+    const FRAME_ERASE_THRESHOLD = 8;
+    const FRAME_ASPECT_OPTIONS = [
+      { label: "16:9", ratio: 16 / 9 },
+      { label: "4:3", ratio: 4 / 3 },
+      { label: "1:1", ratio: 1 },
+      { label: "2.39:1", ratio: 2.39 }
+    ];
+    const LEGACY_STARTER_TITLE = "Start here";
+    const LEGACY_STARTER_BODY = "Two-finger scroll pans the board.\nPinch or Shift + scroll zooms.\nDouble-click empty space to add a note.\nUse + Note or + Frame to add cards.\nDrag cards by the centered dots.\nTurn Board Draw on to sketch on the board or inside frames.\nSave JPEG exports the whole board.";
+
+    let state = loadState();
+    let selectedId = null;
+    let drawMode = false;
+    let activeInkTool = "draw";
+    let activeInkColor = "#111111";
+    let saveTimer = null;
+    let renderFrame = null;
+    let boardPan = null;
+    let boardSketching = null;
+    let gestureState = null;
+    let helpOpen = false;
+    let viewportBounds = { left: 0, top: 0 };
+    let activeCardColorId = null;
+    let zoomScrub = null;
+
+    function defaultState() {
+      return {
+        nextId: 1,
+        pan: { x: null, y: null },
+        zoom: null,
+        boardSketch: createEmptySketch(),
+        items: []
+      };
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) {
+          return defaultState();
+        }
+
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.items)) {
+          return defaultState();
+        }
+
+        return normalizeState(parsed);
+      } catch (error) {
+        console.error("Failed to load state:", error);
+        return defaultState();
+      }
+    }
+
+    function normalizeState(parsed) {
+      const items = parsed.items
+        .map((item, index) => normalizeItem(item, index))
+        .filter(item => !isLegacyStarterNote(item));
+      const maxId = items.reduce((highest, item) => Math.max(highest, item.id), 0);
+
+      return {
+        nextId: parsed.nextId || (maxId + 1),
+        pan: {
+          x: Number.isFinite(parsed.pan && parsed.pan.x) ? parsed.pan.x : null,
+          y: Number.isFinite(parsed.pan && parsed.pan.y) ? parsed.pan.y : null
+        },
+        zoom: Number.isFinite(parsed.zoom) ? parsed.zoom : null,
+        boardSketch: normalizeSketchData(parsed.boardSketch),
+        items
+      };
+    }
+
+    function isLegacyStarterNote(item) {
+      return item.kind === "note" && item.title === LEGACY_STARTER_TITLE && item.body === LEGACY_STARTER_BODY;
+    }
+
+    function normalizeItem(item, index) {
+      const fallbackId = index + 1;
+      const kind = item.kind === "frame" ? "frame" : "note";
+      const size = estimateCardSize(kind);
+      const aspect = kind === "frame" ? normalizeFrameAspect(item.aspect) : null;
+      const minimums = cardMinimums(kind, aspect);
+      const maxWidth = BOARD_WIDTH - 48;
+      const maxHeight = BOARD_HEIGHT - 48;
+      const width = Number.isFinite(item.width)
+        ? clamp(item.width, minimums.width, maxWidth)
+        : size.width;
+      const height = Number.isFinite(item.height)
+        ? clamp(item.height, minimums.height, maxHeight)
+        : size.height;
+      const sketchWidth = kind === "frame" && Number.isFinite(item.sketchWidth) ? item.sketchWidth : 358;
+      const sketchHeight = kind === "frame" && Number.isFinite(item.sketchHeight) ? item.sketchHeight : FRAME_SKETCH_HEIGHT;
+      const normalized = {
+        id: Number.isFinite(item.id) ? item.id : fallbackId,
+        kind,
+        title: typeof item.title === "string" ? item.title : "",
+        body: typeof item.body === "string" ? item.body : "",
+        x: Number.isFinite(item.x) ? item.x : 180 + index * 20,
+        y: Number.isFinite(item.y) ? item.y : 160 + index * 20,
+        z: Number.isFinite(item.z) ? item.z : fallbackId,
+        width,
+        height,
+        color: normalizeHex(item.color, defaultCardColor(kind)),
+        aspect,
+        frameTool: kind === "frame" && item.frameTool === "erase" ? "erase" : "draw",
+        sketchWidth,
+        sketchHeight,
+        sketch: kind === "frame" ? normalizeSketchData(item.sketch) : null
+      };
+      normalized.height = Math.max(normalized.height, minimumCardHeight(normalized));
+      normalized.width = clamp(normalized.width, minimums.width, maxWidth);
+      normalized.height = clamp(normalized.height, minimumCardHeight(normalized), maxHeight);
+      normalized.x = clamp(normalized.x, 24, BOARD_WIDTH - normalized.width - 24);
+      normalized.y = clamp(normalized.y, 24, BOARD_HEIGHT - normalized.height - 24);
+      return normalized;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function createEmptySketch() {
+      return {
+        legacyImage: null,
+        strokes: []
+      };
+    }
+
+    function newStrokeId() {
+      return "stroke-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+    }
+
+    function normalizeSketchData(value) {
+      if (!value) {
+        return createEmptySketch();
+      }
+
+      if (typeof value === "string") {
+        return {
+          legacyImage: value,
+          strokes: []
+        };
+      }
+
+      const strokes = Array.isArray(value.strokes) ? value.strokes.map(normalizeStroke).filter(Boolean) : [];
+      return {
+        legacyImage: typeof value.legacyImage === "string" ? value.legacyImage : null,
+        strokes
+      };
+    }
+
+    function normalizeStroke(stroke) {
+      if (!stroke || !Array.isArray(stroke.points)) {
+        return null;
+      }
+
+      const points = stroke.points
+        .map(point => ({
+          x: Number(point && point.x),
+          y: Number(point && point.y)
+        }))
+        .filter(point => Number.isFinite(point.x) && Number.isFinite(point.y));
+
+      if (!points.length) {
+        return null;
+      }
+
+      return {
+        id: typeof stroke.id === "string" ? stroke.id : newStrokeId(),
+        color: typeof stroke.color === "string" ? stroke.color : "#111111",
+        points
+      };
+    }
+
+    function queueSave(label, delay) {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+          const stamp = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+          saveStatus.textContent = (label || "Autosaved") + " " + stamp;
+        } catch (error) {
+          console.error("Failed to save:", error);
+          saveStatus.textContent = "Save failed in this browser.";
+        }
+      }, delay || 120);
+    }
+
+    function maxZ() {
+      return state.items.reduce((highest, item) => Math.max(highest, item.z || 1), 0);
+    }
+
+    function estimateCardSize(kind) {
+      return kind === "frame"
+        ? { width: FRAME_WIDTH, height: FRAME_HEIGHT_FALLBACK }
+        : { width: NOTE_WIDTH, height: NOTE_HEIGHT_FALLBACK };
+    }
+
+    function normalizeFrameAspect(value) {
+      return FRAME_ASPECT_OPTIONS.some(option => option.label === value) ? value : DEFAULT_FRAME_ASPECT;
+    }
+
+    function frameAspectRatio(aspect) {
+      const option = FRAME_ASPECT_OPTIONS.find(entry => entry.label === normalizeFrameAspect(aspect));
+      return option ? option.ratio : FRAME_ASPECT_OPTIONS[0].ratio;
+    }
+
+    function nextFrameAspect(current) {
+      const index = FRAME_ASPECT_OPTIONS.findIndex(option => option.label === normalizeFrameAspect(current));
+      return FRAME_ASPECT_OPTIONS[(index + 1) % FRAME_ASPECT_OPTIONS.length].label;
+    }
+
+    function frameCanvasSize(item) {
+      const innerWidth = Math.max(180, Math.round((item.width || FRAME_WIDTH) - 28));
+      const height = Math.max(120, Math.round(innerWidth / frameAspectRatio(item.aspect)));
+      return { width: innerWidth, height };
+    }
+
+    function minimumCardHeight(item) {
+      if (item.kind !== "frame") {
+        return NOTE_MIN_HEIGHT;
+      }
+      return Math.max(FRAME_MIN_HEIGHT, frameCanvasSize(item).height + 32 + 30 + 24 + 30 + 40 + FRAME_BODY_MIN_HEIGHT);
+    }
+
+    function cardMinimums(kind, aspect) {
+      return kind === "frame"
+        ? { width: FRAME_MIN_WIDTH, height: minimumCardHeight({ kind, width: FRAME_MIN_WIDTH, aspect }) }
+        : { width: NOTE_MIN_WIDTH, height: NOTE_MIN_HEIGHT };
+    }
+
+    function normalizeHex(value, fallback) {
+      return /^#[0-9a-f]{6}$/i.test(value || "") ? value : fallback;
+    }
+
+    function defaultCardColor(kind) {
+      return kind === "frame" ? DEFAULT_FRAME_COLOR : DEFAULT_NOTE_COLOR;
+    }
+
+    function colorMeta(hexColor) {
+      const color = normalizeHex(hexColor, DEFAULT_NOTE_COLOR);
+      const red = parseInt(color.slice(1, 3), 16);
+      const green = parseInt(color.slice(3, 5), 16);
+      const blue = parseInt(color.slice(5, 7), 16);
+      const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+      return luminance < 0.5
+        ? {
+            ink: "#f7f4ef",
+            placeholder: "rgba(247, 244, 239, 0.56)"
+          }
+        : {
+            ink: "#1d1714",
+            placeholder: "rgba(29, 23, 20, 0.38)"
+          };
+    }
+
+    function applyCardAppearance(card, item) {
+      const fill = normalizeHex(item.color, defaultCardColor(item.kind));
+      const meta = colorMeta(fill);
+      item.width = clamp(item.width, cardMinimums(item.kind, item.aspect).width, BOARD_WIDTH - 48);
+      item.height = Math.max(item.height, minimumCardHeight(item));
+      item.height = clamp(item.height, minimumCardHeight(item), BOARD_HEIGHT - 48);
+      card.style.background = fill;
+      card.style.setProperty("--card-ink", meta.ink);
+      card.style.setProperty("--card-placeholder", meta.placeholder);
+      card.style.width = item.width + "px";
+      card.style.height = item.height + "px";
+    }
+
+    function scaleSketch(strokeSet, fromWidth, fromHeight, toWidth, toHeight) {
+      if (!strokeSet || !Array.isArray(strokeSet.strokes) || !fromWidth || !fromHeight) {
+        return;
+      }
+
+      const scaleX = toWidth / fromWidth;
+      const scaleY = toHeight / fromHeight;
+      strokeSet.strokes.forEach(stroke => {
+        stroke.points.forEach(point => {
+          point.x *= scaleX;
+          point.y *= scaleY;
+        });
+      });
+    }
+
+    function syncFrameCanvasElement(canvas, item) {
+      if (!canvas || item.kind !== "frame") {
+        return;
+      }
+
+      const nextSize = frameCanvasSize(item);
+      const sketch = ensureFrameSketch(item);
+      if (Number.isFinite(item.sketchWidth) && Number.isFinite(item.sketchHeight)) {
+        if (item.sketchWidth !== nextSize.width || item.sketchHeight !== nextSize.height) {
+          scaleSketch(sketch, item.sketchWidth, item.sketchHeight, nextSize.width, nextSize.height);
+        }
+      }
+      item.sketchWidth = nextSize.width;
+      item.sketchHeight = nextSize.height;
+      canvas.width = nextSize.width;
+      canvas.height = nextSize.height;
+      canvas.style.height = nextSize.height + "px";
+      renderSketchCanvas(canvas, sketch);
+    }
+
+    function viewportPoint(clientX, clientY) {
+      return {
+        x: clientX - viewportBounds.left,
+        y: clientY - viewportBounds.top
+      };
+    }
+
+    function updateViewportMetrics() {
+      const rect = viewport.getBoundingClientRect();
+      viewportBounds = {
+        left: rect.left,
+        top: rect.top
+      };
+    }
+
+    function boardPointFromClient(clientX, clientY) {
+      const point = viewportPoint(clientX, clientY);
+      return {
+        x: clamp((point.x - state.pan.x) / state.zoom, 0, BOARD_WIDTH),
+        y: clamp((point.y - state.pan.y) / state.zoom, 0, BOARD_HEIGHT)
+      };
+    }
+
+    function boardPoint(event) {
+      return boardPointFromClient(event.clientX, event.clientY);
+    }
+
+    function fitBoardZoom() {
+      const padding = 36;
+      return clamp(
+        Math.min(
+          (viewport.clientWidth - padding) / BOARD_WIDTH,
+          (viewport.clientHeight - padding) / BOARD_HEIGHT
+        ),
+        MIN_ZOOM,
+        MAX_ZOOM
+      );
+    }
+
+    function defaultZoom() {
+      return fitBoardZoom();
+    }
+
+    function clampPan(x, y, zoom) {
+      const padX = 90;
+      const padY = 90;
+      const scaledWidth = BOARD_WIDTH * zoom;
+      const scaledHeight = BOARD_HEIGHT * zoom;
+
+      let nextX = x;
+      let nextY = y;
+
+      if (scaledWidth + padX * 2 <= viewport.clientWidth) {
+        nextX = (viewport.clientWidth - scaledWidth) / 2;
+      } else {
+        nextX = clamp(x, viewport.clientWidth - scaledWidth - padX, padX);
+      }
+
+      if (scaledHeight + padY * 2 <= viewport.clientHeight) {
+        nextY = (viewport.clientHeight - scaledHeight) / 2;
+      } else {
+        nextY = clamp(y, viewport.clientHeight - scaledHeight - padY, padY);
+      }
+
+      return { x: nextX, y: nextY };
+    }
+
+    function commitBoardTransform() {
+      const clampedZoom = clamp(state.zoom, MIN_ZOOM, MAX_ZOOM);
+      const clampedPan = clampPan(state.pan.x, state.pan.y, clampedZoom);
+      state.zoom = clampedZoom;
+      state.pan = clampedPan;
+      board.style.transform = "translate(" + clampedPan.x + "px, " + clampedPan.y + "px) scale(" + clampedZoom + ")";
+      zoomReadout.textContent = Math.round(clampedZoom * 100) + "%";
+    }
+
+    function scheduleBoardRender(saveLabel, saveDelay) {
+      if (saveLabel) {
+        queueSave(saveLabel, saveDelay || 240);
+      }
+
+      if (renderFrame !== null) {
+        return;
+      }
+
+      renderFrame = requestAnimationFrame(() => {
+        renderFrame = null;
+        commitBoardTransform();
+      });
+    }
+
+    function centerBoard() {
+      state.zoom = defaultZoom();
+      const scaledWidth = BOARD_WIDTH * state.zoom;
+      const scaledHeight = BOARD_HEIGHT * state.zoom;
+      state.pan = {
+        x: (viewport.clientWidth - scaledWidth) / 2,
+        y: (viewport.clientHeight - scaledHeight) / 2
+      };
+      commitBoardTransform();
+    }
+
+    function resetView(saveLabel) {
+      state.zoom = fitBoardZoom();
+      const scaledWidth = BOARD_WIDTH * state.zoom;
+      const scaledHeight = BOARD_HEIGHT * state.zoom;
+      state.pan = {
+        x: (viewport.clientWidth - scaledWidth) / 2,
+        y: (viewport.clientHeight - scaledHeight) / 2
+      };
+      commitBoardTransform();
+      if (saveLabel) {
+        queueSave(saveLabel, 140);
+      }
+    }
+
+    function zoomAt(clientX, clientY, nextZoom, saveLabel) {
+      const viewportAnchor = viewportPoint(clientX, clientY);
+      const previousZoom = state.zoom;
+      const clampedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+
+      if (Math.abs(clampedZoom - previousZoom) < 0.0001) {
+        return;
+      }
+
+      const boardX = (viewportAnchor.x - state.pan.x) / previousZoom;
+      const boardY = (viewportAnchor.y - state.pan.y) / previousZoom;
+      state.zoom = clampedZoom;
+      state.pan = {
+        x: viewportAnchor.x - boardX * clampedZoom,
+        y: viewportAnchor.y - boardY * clampedZoom
+      };
+      scheduleBoardRender(saveLabel, 260);
+    }
+
+    function viewportCenterClientPoint() {
+      return {
+        x: viewportBounds.left + viewport.clientWidth / 2,
+        y: viewportBounds.top + viewport.clientHeight / 2
+      };
+    }
+
+    function visibleCenterPosition(kind) {
+      const size = estimateCardSize(kind);
+      const centerBoardX = (viewport.clientWidth / 2 - state.pan.x) / state.zoom;
+      const centerBoardY = (viewport.clientHeight / 2 - state.pan.y) / state.zoom;
+      const offset = state.items.length * 18;
+
+      return {
+        x: clamp(centerBoardX - size.width / 2 + offset, 40, BOARD_WIDTH - size.width - 40),
+        y: clamp(centerBoardY - size.height / 2 + offset, 40, BOARD_HEIGHT - size.height - 40)
+      };
+    }
+
+    function setSelected(id) {
+      selectedId = id;
+      Array.from(cardsLayer.children).forEach(card => {
+        card.classList.toggle("is-selected", Number(card.dataset.id) === id);
+      });
+    }
+
+    function blurActiveEditorIfNeeded(target) {
+      const activeElement = document.activeElement;
+      if (!activeElement || !(activeElement instanceof HTMLElement)) {
+        return;
+      }
+
+      if (!activeElement.matches(".card__title, .card__body")) {
+        return;
+      }
+
+      const element = target instanceof Element ? target : null;
+      if (element && element.closest(".card__title, .card__body")) {
+        return;
+      }
+
+      activeElement.blur();
+    }
+
+    function bringToFront(id, shouldPersist) {
+      const item = state.items.find(entry => entry.id === id);
+      if (!item) {
+        return;
+      }
+
+      item.z = maxZ() + 1;
+      const card = cardsLayer.querySelector('[data-id="' + id + '"]');
+      if (card) {
+        card.style.zIndex = String(item.z);
+      }
+      if (shouldPersist) {
+        queueSave("Reordered card", 180);
+      }
+    }
+
+    function addCard(kind) {
+      return addCardAt(kind, visibleCenterPosition(kind));
+    }
+
+    function addCardAt(kind, position) {
+      const aspect = kind === "frame" ? DEFAULT_FRAME_ASPECT : null;
+      const item = {
+        id: state.nextId++,
+        kind,
+        title: "",
+        body: "",
+        x: position.x,
+        y: position.y,
+        z: maxZ() + 1,
+        width: estimateCardSize(kind).width,
+        height: estimateCardSize(kind).height,
+        color: defaultCardColor(kind),
+        aspect,
+        frameTool: kind === "frame" ? "draw" : null,
+        sketchWidth: null,
+        sketchHeight: null,
+        sketch: kind === "frame" ? createEmptySketch() : null
+      };
+      item.height = Math.max(item.height, minimumCardHeight(item));
+
+      state.items.push(item);
+      renderCards();
+      setSelected(item.id);
+      queueSave("Added card", 160);
+      focusCardTitle(item.id);
+      flashNewCard(item.id);
+      return item;
+    }
+
+    function focusCardTitle(id) {
+      requestAnimationFrame(() => {
+        const title = cardsLayer.querySelector('[data-id="' + id + '"] .card__title');
+        if (!title) {
+          return;
+        }
+        title.focus();
+        title.select();
+      });
+    }
+
+    function flashNewCard(id) {
+      requestAnimationFrame(() => {
+        const card = cardsLayer.querySelector('[data-id="' + id + '"]');
+        if (!card) {
+          return;
+        }
+        card.classList.add("is-new");
+        setTimeout(() => {
+          card.classList.remove("is-new");
+        }, 280);
+      });
+    }
+
+    function deleteCard(id) {
+      state.items = state.items.filter(item => item.id !== id);
+      if (selectedId === id) {
+        selectedId = null;
+      }
+      renderCards();
+      queueSave("Deleted card", 160);
+    }
+
+    function duplicateCard(id) {
+      const original = state.items.find(item => item.id === id);
+      if (!original) {
+        return;
+      }
+
+      const size = {
+        width: original.width || estimateCardSize(original.kind).width,
+        height: original.height || estimateCardSize(original.kind).height
+      };
+      const duplicate = {
+        ...original,
+        id: state.nextId++,
+        x: clamp(original.x + 34, 40, BOARD_WIDTH - size.width - 40),
+        y: clamp(original.y + 28, 40, BOARD_HEIGHT - size.height - 40),
+        z: maxZ() + 1,
+        width: original.width,
+        height: original.height,
+        color: original.color,
+        aspect: original.aspect,
+        frameTool: original.frameTool,
+        sketchWidth: original.sketchWidth,
+        sketchHeight: original.sketchHeight,
+        sketch: original.kind === "frame" ? normalizeSketchData(original.sketch) : null
+      };
+
+      state.items.push(duplicate);
+      renderCards();
+      setSelected(duplicate.id);
+      queueSave("Duplicated card", 160);
+    }
+
+    function clearCanvas(ctx, canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function ensureBoardSketch() {
+      if (!state.boardSketch || !Array.isArray(state.boardSketch.strokes)) {
+        state.boardSketch = createEmptySketch();
+      }
+      return state.boardSketch;
+    }
+
+    function ensureFrameSketch(item) {
+      if (!item.sketch || !Array.isArray(item.sketch.strokes)) {
+        item.sketch = createEmptySketch();
+      }
+      return item.sketch;
+    }
+
+    function drawStroke(ctx, stroke, options) {
+      const scaleX = options && options.scaleX ? options.scaleX : 1;
+      const scaleY = options && options.scaleY ? options.scaleY : 1;
+      const offsetX = options && options.offsetX ? options.offsetX : 0;
+      const offsetY = options && options.offsetY ? options.offsetY : 0;
+      const widthScale = (scaleX + scaleY) / 2;
+      const lineWidth = Math.max(2, 4 * widthScale);
+
+      ctx.save();
+      ctx.strokeStyle = stroke.color;
+      ctx.fillStyle = stroke.color;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = lineWidth;
+      ctx.beginPath();
+
+      if (stroke.points.length === 1) {
+        const point = stroke.points[0];
+        ctx.arc(offsetX + point.x * scaleX, offsetY + point.y * scaleY, lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      stroke.points.forEach((point, index) => {
+        const x = offsetX + point.x * scaleX;
+        const y = offsetY + point.y * scaleY;
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawSketchStrokes(ctx, sketch, options) {
+      if (!sketch || !Array.isArray(sketch.strokes)) {
+        return;
+      }
+      sketch.strokes.forEach(stroke => drawStroke(ctx, stroke, options));
+    }
+
+    function renderSketchCanvas(canvas, sketch) {
+      const ctx = canvas.getContext("2d");
+      clearCanvas(ctx, canvas);
+
+      const drawStrokes = () => {
+        drawSketchStrokes(ctx, sketch, {
+          offsetX: 0,
+          offsetY: 0,
+          scaleX: 1,
+          scaleY: 1
+        });
+      };
+
+      if (sketch && sketch.legacyImage) {
+        const image = new Image();
+        image.onload = () => {
+          clearCanvas(ctx, canvas);
+          ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+          drawStrokes();
+        };
+        image.src = sketch.legacyImage;
+        return;
+      }
+
+      drawStrokes();
+    }
+
+    function renderBoardSketch() {
+      renderSketchCanvas(boardCanvas, ensureBoardSketch());
+    }
+
+    function drawLiveStrokeSegment(ctx, fromPoint, toPoint, color, width) {
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = width;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(fromPoint.x, fromPoint.y);
+      ctx.lineTo(toPoint.x, toPoint.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawLiveDot(ctx, point, color, width) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, width / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function pointToSegmentDistance(point, start, end) {
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+
+      if (dx === 0 && dy === 0) {
+        return Math.hypot(point.x - start.x, point.y - start.y);
+      }
+
+      const t = clamp(
+        ((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy),
+        0,
+        1
+      );
+      const projection = {
+        x: start.x + t * dx,
+        y: start.y + t * dy
+      };
+      return Math.hypot(point.x - projection.x, point.y - projection.y);
+    }
+
+    function strokeDistance(stroke, point) {
+      if (!stroke.points.length) {
+        return Infinity;
+      }
+
+      if (stroke.points.length === 1) {
+        return Math.hypot(point.x - stroke.points[0].x, point.y - stroke.points[0].y);
+      }
+
+      let best = Infinity;
+      for (let index = 1; index < stroke.points.length; index += 1) {
+        best = Math.min(best, pointToSegmentDistance(point, stroke.points[index - 1], stroke.points[index]));
+      }
+      return best;
+    }
+
+    function eraseStrokeAtPoint(sketch, point, threshold) {
+      if (!sketch || !Array.isArray(sketch.strokes) || !sketch.strokes.length) {
+        return false;
+      }
+
+      let bestIndex = -1;
+      let bestDistance = threshold;
+
+      for (let index = sketch.strokes.length - 1; index >= 0; index -= 1) {
+        const distance = strokeDistance(sketch.strokes[index], point);
+        if (distance <= bestDistance) {
+          bestDistance = distance;
+          bestIndex = index;
+        }
+      }
+
+      if (bestIndex === -1) {
+        return false;
+      }
+
+      sketch.strokes.splice(bestIndex, 1);
+      return true;
+    }
+
+    function setTool(tool) {
+      activeInkTool = tool;
+      inkToggle.classList.toggle("btn--active", tool === "draw");
+      eraserToggle.classList.toggle("btn--active", tool === "erase");
+    }
+
+    function setColor(color, source) {
+      activeInkColor = color;
+      colorButtons.forEach(button => {
+        button.classList.toggle("is-active", button.dataset.color === color);
+      });
+      colorPickerButton.classList.toggle("is-active", source === "picker");
+      if (source !== "picker") {
+        colorPicker.value = normalizeColor(colorPicker.value, color);
+      }
+    }
+
+    function normalizeColor(currentValue, nextValue) {
+      return /^#[0-9a-f]{6}$/i.test(nextValue) ? nextValue : currentValue;
+    }
+
+    function iconBoardDrawSvg(enabled) {
+      if (enabled) {
+        return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M8 12l3 3 5-6"></path></svg>';
+      }
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg>';
+    }
+
+    function iconInkSvg() {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5-4-4L4.5 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>';
+    }
+
+    function iconEraseSvg() {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 15l6.5-6.5a2.5 2.5 0 0 1 3.5 0l2.5 2.5a2.5 2.5 0 0 1 0 3.5L15 19H9z"></path><path d="M4 19h16"></path></svg>';
+    }
+
+    function setDrawMode(enabled) {
+      drawMode = enabled;
+      stage.classList.toggle("is-draw-mode", drawMode);
+      boardCanvas.classList.toggle("is-drawing", drawMode);
+      viewport.classList.toggle("is-draw-mode", drawMode);
+      boardDrawToggle.classList.toggle("btn--active", drawMode);
+      boardDrawToggle.setAttribute("aria-pressed", String(drawMode));
+      boardDrawToggle.innerHTML = iconBoardDrawSvg(drawMode) + '<span>Board Draw</span>';
+      inkToggle.classList.toggle("is-ghosted", !drawMode);
+      eraserToggle.classList.toggle("is-ghosted", !drawMode);
+    }
+
+    function setHelpOpen(open) {
+      helpOpen = open;
+      helpPanel.hidden = !helpOpen;
+      helpToggleButton.classList.toggle("btn--active", helpOpen);
+      helpToggleButton.setAttribute("aria-expanded", String(helpOpen));
+    }
+
+    function iconCopySvg() {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M15 9V7a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>';
+    }
+
+    function iconCloseSvg() {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>';
+    }
+
+    function iconPaletteSvg() {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4a8 8 0 1 0 0 16h1.2a1.8 1.8 0 0 0 0-3.6H12a1.8 1.8 0 0 1 0-3.6h1.1A4.9 4.9 0 0 0 18 7.9 3.9 3.9 0 0 0 14.1 4z"></path><path d="M7.5 10.2h.01"></path><path d="M9.7 7.4h.01"></path><path d="M13.5 7h.01"></path></svg>';
+    }
+
+    function buildCard(item) {
+      const card = document.createElement("article");
+      card.className = "card card--" + item.kind;
+      card.dataset.id = String(item.id);
+      card.style.transform = "translate3d(" + item.x + "px, " + item.y + "px, 0)";
+      card.style.zIndex = String(item.z || 1);
+      applyCardAppearance(card, item);
+
+      card.innerHTML = [
+        '<div class="card__header">',
+        '  <button class="card__handle" type="button" aria-label="Drag card"><span class="card__dots" aria-hidden="true"></span></button>',
+        '  <div class="card__actions">',
+        item.kind === "frame"
+          ? '    <button class="icon-btn ratio-btn" type="button" data-aspect aria-label="Change canvas aspect ratio">' + item.aspect + "</button>"
+          : "",
+        '    <button class="icon-btn" type="button" data-colorize aria-label="Change card color">' + iconPaletteSvg() + "</button>",
+        '    <button class="icon-btn" type="button" data-duplicate aria-label="Duplicate card">' + iconCopySvg() + "</button>",
+        '    <button class="icon-btn" type="button" data-delete aria-label="Delete card">' + iconCloseSvg() + "</button>",
+        "  </div>",
+        "</div>",
+        '<button class="card__resize" type="button" aria-label="Resize card"></button>'
+      ].join("");
+
+      const titleInput = document.createElement("input");
+      titleInput.className = "card__title";
+      titleInput.type = "text";
+      titleInput.value = item.title;
+      titleInput.placeholder = "Title";
+      titleInput.addEventListener("input", () => {
+        item.title = titleInput.value;
+        queueSave("Autosaved", 150);
+      });
+
+      const bodyInput = document.createElement("textarea");
+      bodyInput.className = "card__body";
+      bodyInput.value = item.body;
+      bodyInput.placeholder = "Write here...";
+      bodyInput.addEventListener("input", () => {
+        item.body = bodyInput.value;
+        queueSave("Autosaved", 150);
+      });
+
+      card.append(titleInput);
+      let frameCanvas = null;
+
+      if (item.kind === "frame") {
+        const frameTools = document.createElement("div");
+        frameTools.className = "frame-tools";
+        frameTools.innerHTML = [
+          '<button class="icon-btn" type="button" data-frame-tool="draw" aria-label="Frame pen">' + iconInkSvg() + "</button>",
+          '<button class="icon-btn" type="button" data-frame-tool="erase" aria-label="Frame eraser">' + iconEraseSvg() + "</button>"
+        ].join("");
+        frameCanvas = document.createElement("canvas");
+        frameCanvas.className = "frame-canvas";
+        card.append(frameTools, frameCanvas, bodyInput);
+
+        requestAnimationFrame(() => {
+          syncFrameCanvasElement(frameCanvas, item);
+        });
+
+        wireSketchCanvas(frameCanvas, item);
+        frameTools.querySelectorAll("[data-frame-tool]").forEach(button => {
+          button.classList.toggle("is-active", button.dataset.frameTool === item.frameTool);
+          button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            item.frameTool = button.dataset.frameTool;
+            frameTools.querySelectorAll("[data-frame-tool]").forEach(entry => {
+              entry.classList.toggle("is-active", entry.dataset.frameTool === item.frameTool);
+            });
+            queueSave("Updated frame tool", 120);
+          });
+        });
+      } else {
+        card.append(bodyInput);
+      }
+
+      card.addEventListener("pointerdown", () => {
+        setSelected(item.id);
+        bringToFront(item.id, false);
+      });
+
+      wireCardDrag(card, card.querySelector(".card__handle"), item);
+
+      card.querySelector("[data-delete]").addEventListener("click", event => {
+        event.stopPropagation();
+        deleteCard(item.id);
+      });
+
+      card.querySelector("[data-duplicate]").addEventListener("click", event => {
+        event.stopPropagation();
+        duplicateCard(item.id);
+      });
+
+      card.querySelector("[data-colorize]").addEventListener("click", event => {
+        event.stopPropagation();
+        activeCardColorId = item.id;
+        cardColorPicker.value = normalizeHex(item.color, defaultCardColor(item.kind));
+        cardColorPicker.click();
+      });
+
+      const aspectButton = card.querySelector("[data-aspect]");
+      if (aspectButton) {
+        aspectButton.addEventListener("click", event => {
+          event.stopPropagation();
+          item.aspect = nextFrameAspect(item.aspect);
+          aspectButton.textContent = item.aspect;
+          applyCardAppearance(card, item);
+          syncFrameCanvasElement(frameCanvas, item);
+          queueSave("Changed aspect ratio", 150);
+        });
+      }
+
+      wireCardResize(card, card.querySelector(".card__resize"), item);
+
+      return card;
+    }
+
+    function renderCards() {
+      cardsLayer.innerHTML = "";
+      state.items.forEach(item => {
+        cardsLayer.append(buildCard(item));
+      });
+      setSelected(selectedId);
+    }
+
+    function wireCardDrag(card, handle, item) {
+      let dragging = null;
+
+      handle.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelected(item.id);
+        bringToFront(item.id, false);
+        dragging = {
+          pointerId: event.pointerId,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          originX: item.x,
+          originY: item.y,
+          width: card.offsetWidth,
+          height: card.offsetHeight
+        };
+        handle.setPointerCapture(event.pointerId);
+      });
+
+      handle.addEventListener("pointermove", event => {
+        if (!dragging || dragging.pointerId !== event.pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        item.x = clamp(
+          dragging.originX + (event.clientX - dragging.startClientX) / state.zoom,
+          24,
+          BOARD_WIDTH - dragging.width - 24
+        );
+        item.y = clamp(
+          dragging.originY + (event.clientY - dragging.startClientY) / state.zoom,
+          24,
+          BOARD_HEIGHT - dragging.height - 24
+        );
+        card.style.transform = "translate3d(" + item.x + "px, " + item.y + "px, 0)";
+      });
+
+      function stopDrag(event) {
+        if (!dragging || dragging.pointerId !== event.pointerId) {
+          return;
+        }
+        dragging = null;
+        queueSave("Moved card", 180);
+      }
+
+      handle.addEventListener("pointerup", stopDrag);
+      handle.addEventListener("pointercancel", stopDrag);
+    }
+
+    function wireCardResize(card, handle, item) {
+      let resizing = null;
+
+      handle.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelected(item.id);
+        bringToFront(item.id, false);
+        resizing = {
+          pointerId: event.pointerId,
+          startClientX: event.clientX,
+          startClientY: event.clientY,
+          originWidth: item.width,
+          originHeight: item.height
+        };
+        handle.setPointerCapture(event.pointerId);
+      });
+
+      handle.addEventListener("pointermove", event => {
+        if (!resizing || resizing.pointerId !== event.pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        const minimums = cardMinimums(item.kind);
+        const maxWidth = BOARD_WIDTH - item.x - 24;
+        const maxHeight = BOARD_HEIGHT - item.y - 24;
+        item.width = clamp(
+          resizing.originWidth + (event.clientX - resizing.startClientX) / state.zoom,
+          minimums.width,
+          maxWidth
+        );
+        const nextMinimumHeight = minimumCardHeight(item);
+        item.height = clamp(
+          resizing.originHeight + (event.clientY - resizing.startClientY) / state.zoom,
+          nextMinimumHeight,
+          maxHeight
+        );
+        applyCardAppearance(card, item);
+        if (item.kind === "frame") {
+          syncFrameCanvasElement(card.querySelector(".frame-canvas"), item);
+        }
+      });
+
+      function stopResize(event) {
+        if (!resizing || resizing.pointerId !== event.pointerId) {
+          return;
+        }
+        resizing = null;
+        queueSave("Resized card", 180);
+      }
+
+      handle.addEventListener("pointerup", stopResize);
+      handle.addEventListener("pointercancel", stopResize);
+    }
+
+    function wireSketchCanvas(canvas, item) {
+      const ctx = canvas.getContext("2d");
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      let drawing = null;
+
+      function point(event) {
+        const rect = drawing && drawing.rect ? drawing.rect : canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) * (canvas.width / rect.width),
+          y: (event.clientY - rect.top) * (canvas.height / rect.height)
+        };
+      }
+
+      canvas.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSelected(item.id);
+        bringToFront(item.id, false);
+        const sketch = ensureFrameSketch(item);
+        const startPoint = point(event);
+        drawing = item.frameTool === "erase"
+          ? {
+              pointerId: event.pointerId,
+              mode: "erase",
+              rect: canvas.getBoundingClientRect()
+            }
+          : {
+              pointerId: event.pointerId,
+              mode: "draw",
+              rect: canvas.getBoundingClientRect(),
+              stroke: {
+                id: newStrokeId(),
+                color: activeInkColor,
+                points: [startPoint]
+              }
+            };
+
+        if (drawing.mode === "erase") {
+          if (eraseStrokeAtPoint(sketch, startPoint, FRAME_ERASE_THRESHOLD)) {
+            renderSketchCanvas(canvas, sketch);
+          }
+        }
+        canvas.setPointerCapture(event.pointerId);
+      });
+
+      canvas.addEventListener("pointermove", event => {
+        if (!drawing || drawing.pointerId !== event.pointerId) {
+          return;
+        }
+
+        event.preventDefault();
+        const nextPoint = point(event);
+        const sketch = ensureFrameSketch(item);
+
+        if (drawing.mode === "erase") {
+          if (eraseStrokeAtPoint(sketch, nextPoint, FRAME_ERASE_THRESHOLD)) {
+            renderSketchCanvas(canvas, sketch);
+          }
+          return;
+        }
+
+        const stroke = drawing.stroke;
+        const lastPoint = stroke.points[stroke.points.length - 1];
+        if (!lastPoint || (lastPoint.x === nextPoint.x && lastPoint.y === nextPoint.y)) {
+          return;
+        }
+        stroke.points.push(nextPoint);
+        drawLiveStrokeSegment(ctx, lastPoint, nextPoint, stroke.color, 4);
+      });
+
+      function stop(event) {
+        if (!drawing || drawing.pointerId !== event.pointerId) {
+          return;
+        }
+        const sketch = ensureFrameSketch(item);
+
+        if (drawing.mode === "draw") {
+          const stroke = drawing.stroke;
+          if (stroke.points.length === 1) {
+            drawLiveDot(ctx, stroke.points[0], stroke.color, 4);
+          }
+          sketch.strokes.push(stroke);
+          renderSketchCanvas(canvas, sketch);
+        }
+
+        drawing = null;
+        queueSave("Saved sketch", 180);
+      }
+
+      canvas.addEventListener("pointerup", stop);
+      canvas.addEventListener("pointercancel", stop);
+    }
+
+    function startBoardPan(event) {
+      if (drawMode) {
+        return;
+      }
+
+      if (event.target.closest(".card") || event.target.closest(".floating-tools") || event.target.closest(".help-panel")) {
+        return;
+      }
+
+      event.preventDefault();
+      setSelected(null);
+      boardPan = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: state.pan.x,
+        originY: state.pan.y
+      };
+      viewport.classList.add("is-panning");
+      viewport.setPointerCapture(event.pointerId);
+    }
+
+    viewport.addEventListener("pointerdown", event => {
+      if (event.target === viewport || event.target === board) {
+        startBoardPan(event);
+      }
+    });
+
+    viewport.addEventListener("pointermove", event => {
+      if (!boardPan || boardPan.pointerId !== event.pointerId) {
+        return;
+      }
+
+      event.preventDefault();
+      state.pan = {
+        x: boardPan.originX + (event.clientX - boardPan.startX),
+        y: boardPan.originY + (event.clientY - boardPan.startY)
+      };
+      scheduleBoardRender();
+    });
+
+    function stopBoardPan(event) {
+      if (!boardPan || boardPan.pointerId !== event.pointerId) {
+        return;
+      }
+
+      boardPan = null;
+      viewport.classList.remove("is-panning");
+      scheduleBoardRender("Moved board", 260);
+    }
+
+    viewport.addEventListener("pointerup", stopBoardPan);
+    viewport.addEventListener("pointercancel", stopBoardPan);
+
+    function handleWheel(event) {
+      if (event.target.closest(".floating-tools") || event.target.closest(".help-panel")) {
+        return;
+      }
+
+      if (event.ctrlKey || event.shiftKey) {
+        event.preventDefault();
+        const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+        const factor = Math.exp(-delta * 0.0025);
+        zoomAt(event.clientX, event.clientY, state.zoom * factor, "Zoomed board");
+        return;
+      }
+
+      event.preventDefault();
+      state.pan = {
+        x: state.pan.x - event.deltaX,
+        y: state.pan.y - event.deltaY
+      };
+      scheduleBoardRender("Moved board", 260);
+    }
+
+    viewport.addEventListener("wheel", handleWheel, { passive: false });
+
+    viewport.addEventListener("gesturestart", event => {
+      if (event.target.closest(".floating-tools") || event.target.closest(".help-panel")) {
+        return;
+      }
+      event.preventDefault();
+      gestureState = {
+        startZoom: state.zoom,
+        clientX: event.clientX || viewportBounds.left + viewport.clientWidth / 2,
+        clientY: event.clientY || viewportBounds.top + viewport.clientHeight / 2
+      };
+    }, { passive: false });
+
+    viewport.addEventListener("gesturechange", event => {
+      if (!gestureState) {
+        return;
+      }
+      event.preventDefault();
+      zoomAt(
+        gestureState.clientX,
+        gestureState.clientY,
+        gestureState.startZoom * event.scale,
+        "Zoomed board"
+      );
+    }, { passive: false });
+
+    viewport.addEventListener("gestureend", event => {
+      if (!gestureState) {
+        return;
+      }
+      event.preventDefault();
+      gestureState = null;
+    }, { passive: false });
+
+    boardCanvas.addEventListener("pointerdown", event => {
+      if (!drawMode) {
+        return;
+      }
+
+      event.preventDefault();
+      const sketch = ensureBoardSketch();
+      const startPoint = boardPoint(event);
+      boardSketching = activeInkTool === "erase"
+        ? {
+            pointerId: event.pointerId,
+            mode: "erase"
+          }
+        : {
+            pointerId: event.pointerId,
+            mode: "draw",
+            stroke: {
+              id: newStrokeId(),
+              color: activeInkColor,
+              points: [startPoint]
+            }
+          };
+
+      if (boardSketching.mode === "erase") {
+        if (eraseStrokeAtPoint(sketch, startPoint, BOARD_ERASE_THRESHOLD)) {
+          renderBoardSketch();
+        }
+      }
+      boardCanvas.setPointerCapture(event.pointerId);
+    });
+
+    boardCanvas.addEventListener("pointermove", event => {
+      if (!boardSketching || boardSketching.pointerId !== event.pointerId) {
+        return;
+      }
+
+      event.preventDefault();
+      const nextPoint = boardPoint(event);
+      const sketch = ensureBoardSketch();
+
+      if (boardSketching.mode === "erase") {
+        if (eraseStrokeAtPoint(sketch, nextPoint, BOARD_ERASE_THRESHOLD)) {
+          renderBoardSketch();
+        }
+        return;
+      }
+
+      const stroke = boardSketching.stroke;
+      const lastPoint = stroke.points[stroke.points.length - 1];
+      if (!lastPoint || (lastPoint.x === nextPoint.x && lastPoint.y === nextPoint.y)) {
+        return;
+      }
+      stroke.points.push(nextPoint);
+      drawLiveStrokeSegment(boardCtx, lastPoint, nextPoint, stroke.color, 5);
+    });
+
+    function stopBoardSketch(event) {
+      if (!boardSketching || boardSketching.pointerId !== event.pointerId) {
+        return;
+      }
+
+      const drawing = boardSketching;
+      boardSketching = null;
+      const sketch = ensureBoardSketch();
+      if (drawing.mode === "draw") {
+        const stroke = drawing.stroke;
+        if (stroke.points.length === 1) {
+          drawLiveDot(boardCtx, stroke.points[0], stroke.color, 5);
+        }
+        sketch.strokes.push(stroke);
+        renderBoardSketch();
+      }
+      queueSave("Saved board sketch", 180);
+    }
+
+    boardCanvas.addEventListener("pointerup", stopBoardSketch);
+    boardCanvas.addEventListener("pointercancel", stopBoardSketch);
+
+    document.querySelectorAll("[data-add]").forEach(button => {
+      button.addEventListener("click", () => addCard(button.dataset.add));
+    });
+
+    resetViewButton.addEventListener("click", () => {
+      resetView("Reset view");
+    });
+
+    helpToggleButton.addEventListener("click", () => {
+      setHelpOpen(!helpOpen);
+    });
+
+    boardDrawToggle.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      setDrawMode(!drawMode);
+    });
+
+    boardDrawToggle.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      event.preventDefault();
+      setDrawMode(!drawMode);
+    });
+
+    zoomReadout.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      blurActiveEditorIfNeeded(event.target);
+      zoomScrub = {
+        pointerId: event.pointerId,
+        startClientX: event.clientX,
+        startZoom: state.zoom
+      };
+      zoomReadout.setPointerCapture(event.pointerId);
+    });
+
+    zoomReadout.addEventListener("pointermove", event => {
+      if (!zoomScrub || zoomScrub.pointerId !== event.pointerId) {
+        return;
+      }
+
+      event.preventDefault();
+      const deltaX = event.clientX - zoomScrub.startClientX;
+      const center = viewportCenterClientPoint();
+      zoomAt(center.x, center.y, zoomScrub.startZoom + deltaX * 0.0032);
+    });
+
+    function stopZoomScrub(event) {
+      if (!zoomScrub || zoomScrub.pointerId !== event.pointerId) {
+        return;
+      }
+
+      zoomScrub = null;
+      queueSave("Zoomed board", 140);
+    }
+
+    zoomReadout.addEventListener("pointerup", stopZoomScrub);
+    zoomReadout.addEventListener("pointercancel", stopZoomScrub);
+
+    inkToggle.addEventListener("click", () => {
+      if (!drawMode) {
+        return;
+      }
+      setTool("draw");
+    });
+    eraserToggle.addEventListener("click", () => {
+      if (!drawMode) {
+        return;
+      }
+      setTool("erase");
+    });
+
+    colorButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        setColor(button.dataset.color, "swatch");
+      });
+    });
+
+    colorPickerButton.addEventListener("click", () => {
+      colorPicker.click();
+    });
+
+    colorPicker.addEventListener("input", () => {
+      setColor(colorPicker.value, "picker");
+    });
+
+    cardColorPicker.addEventListener("input", () => {
+      if (activeCardColorId === null) {
+        return;
+      }
+
+      const item = state.items.find(entry => entry.id === activeCardColorId);
+      if (!item) {
+        return;
+      }
+
+      item.color = normalizeHex(cardColorPicker.value, defaultCardColor(item.kind));
+      const card = cardsLayer.querySelector('[data-id="' + item.id + '"]');
+      if (card) {
+        applyCardAppearance(card, item);
+      }
+      queueSave("Updated card color", 150);
+    });
+
+    cardColorPicker.addEventListener("change", () => {
+      activeCardColorId = null;
+    });
+
+    clearBoardButton.addEventListener("click", () => {
+      clearCanvas(boardCtx, boardCanvas);
+      state.boardSketch = createEmptySketch();
+      renderBoardSketch();
+      queueSave("Cleared board sketch", 180);
+    });
+
+    viewport.addEventListener("dblclick", event => {
+      if (drawMode) {
+        return;
+      }
+
+      if (event.target.closest(".card") || event.target.closest(".floating-tools") || event.target.closest(".help-panel")) {
+        return;
+      }
+
+      const point = boardPoint(event);
+      const size = estimateCardSize("note");
+      addCardAt("note", {
+        x: clamp(point.x - size.width / 2, 40, BOARD_WIDTH - size.width - 40),
+        y: clamp(point.y - 60, 40, BOARD_HEIGHT - size.height - 40)
+      });
+    });
+
+    document.addEventListener("pointerdown", event => {
+      blurActiveEditorIfNeeded(event.target);
+
+      if (!helpOpen) {
+        return;
+      }
+
+      if (event.target.closest("#help-panel") || event.target.closest("#help-toggle")) {
+        return;
+      }
+
+      setHelpOpen(false);
+    });
+
+    function roundedRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function wrapLines(ctx, text, maxWidth) {
+      const sourceLines = String(text || "").replace(/\r/g, "").split("\n");
+      const lines = [];
+
+      sourceLines.forEach(sourceLine => {
+        const trimmed = sourceLine.trim();
+        if (!trimmed) {
+          lines.push("");
+          return;
+        }
+
+        const words = trimmed.split(/\s+/);
+        let current = "";
+
+        words.forEach(word => {
+          const next = current ? current + " " + word : word;
+          if (!current || ctx.measureText(next).width <= maxWidth) {
+            current = next;
+          } else {
+            lines.push(current);
+            current = word;
+          }
+        });
+
+        if (current) {
+          lines.push(current);
+        }
+      });
+
+      return lines;
+    }
+
+    function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+      const lines = wrapLines(ctx, text, maxWidth).slice(0, maxLines);
+      lines.forEach((line, index) => {
+        ctx.fillText(line, x, y + index * lineHeight);
+      });
+      return lines.length;
+    }
+
+    function loadImage(source) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = source;
+      });
+    }
+
+    async function drawSketchToContext(ctx, sketch, options) {
+      if (!sketch) {
+        return;
+      }
+
+      const offsetX = options && options.offsetX ? options.offsetX : 0;
+      const offsetY = options && options.offsetY ? options.offsetY : 0;
+      const width = options && options.width ? options.width : BOARD_WIDTH;
+      const height = options && options.height ? options.height : BOARD_HEIGHT;
+      const baseWidth = options && options.baseWidth ? options.baseWidth : width;
+      const baseHeight = options && options.baseHeight ? options.baseHeight : height;
+
+      if (sketch.legacyImage) {
+        const image = await loadImage(sketch.legacyImage);
+        ctx.drawImage(image, offsetX, offsetY, width, height);
+      }
+
+      drawSketchStrokes(ctx, sketch, {
+        offsetX,
+        offsetY,
+        scaleX: width / baseWidth,
+        scaleY: height / baseHeight
+      });
+    }
+
+    async function exportBoardAsJpeg() {
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = BOARD_WIDTH;
+      exportCanvas.height = BOARD_HEIGHT;
+      const ctx = exportCanvas.getContext("2d");
+
+      const gradient = ctx.createLinearGradient(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+      gradient.addColorStop(0, "#885836");
+      gradient.addColorStop(1, "#6b442b");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
+
+      await drawSketchToContext(ctx, ensureBoardSketch(), {
+        offsetX: 0,
+        offsetY: 0,
+        width: BOARD_WIDTH,
+        height: BOARD_HEIGHT,
+        baseWidth: BOARD_WIDTH,
+        baseHeight: BOARD_HEIGHT
+      });
+
+      const items = state.items.slice().sort((a, b) => (a.z || 1) - (b.z || 1));
+
+      for (const item of items) {
+        const card = cardsLayer.querySelector('[data-id="' + item.id + '"]');
+        const fallbackSize = {
+          width: item.width || estimateCardSize(item.kind).width,
+          height: item.height || estimateCardSize(item.kind).height
+        };
+        const width = card ? Math.round(card.offsetWidth) : fallbackSize.width;
+        const height = card ? Math.round(card.offsetHeight) : fallbackSize.height;
+        const fill = normalizeHex(item.color, defaultCardColor(item.kind));
+        const meta = colorMeta(fill);
+
+        ctx.save();
+        ctx.shadowColor = "rgba(52, 32, 20, 0.18)";
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+        roundedRect(ctx, item.x, item.y, width, height, 16);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.restore();
+
+        roundedRect(ctx, item.x, item.y, width, height, 16);
+        ctx.strokeStyle = "rgba(29, 23, 20, 0.12)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        const textX = item.x + 16;
+        const textWidth = width - 32;
+        let nextY = item.y + 18;
+
+        ctx.fillStyle = meta.ink;
+        ctx.textBaseline = "top";
+
+        if (item.title.trim()) {
+          ctx.font = '700 24px Arial, sans-serif';
+          const titleLines = drawWrappedText(ctx, item.title, textX, nextY, textWidth, 28, 3);
+          nextY += titleLines * 28 + 8;
+        }
+
+        if (item.kind === "frame") {
+          const sketchX = item.x + 14;
+          const sketchY = nextY;
+          const sketchSize = frameCanvasSize(item);
+          const sketchWidth = sketchSize.width;
+          const sketchHeight = sketchSize.height;
+
+          roundedRect(ctx, sketchX, sketchY, sketchWidth, sketchHeight, 12);
+          ctx.fillStyle = "#f5efe4";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(29, 23, 20, 0.1)";
+          ctx.stroke();
+
+          await drawSketchToContext(ctx, item.sketch, {
+            offsetX: sketchX,
+            offsetY: sketchY,
+            width: sketchWidth,
+            height: sketchHeight,
+            baseWidth: item.sketchWidth || sketchWidth,
+            baseHeight: item.sketchHeight || sketchHeight
+          });
+
+          ctx.font = '400 17px Arial, sans-serif';
+          ctx.fillStyle = meta.ink;
+          const bodyTop = sketchY + sketchHeight + 14;
+          const maxLines = Math.max(1, Math.floor((item.y + height - bodyTop - 14) / 22));
+          drawWrappedText(ctx, item.body, textX, bodyTop, textWidth, 22, maxLines);
+        } else {
+          ctx.font = '400 17px Arial, sans-serif';
+          ctx.fillStyle = meta.ink;
+          const maxLines = Math.max(1, Math.floor((item.y + height - nextY - 14) / 22));
+          drawWrappedText(ctx, item.body, textX, nextY, textWidth, 22, maxLines);
+        }
+      }
+
+      const dataUrl = exportCanvas.toDataURL("image/jpeg", 0.92);
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = "storybored-" + Date.now() + ".jpg";
+      link.click();
+
+      const stamp = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      saveStatus.textContent = "Saved JPEG " + stamp;
+    }
+
+    saveJpegButton.addEventListener("click", () => {
+      exportBoardAsJpeg().catch(error => {
+        console.error("JPEG export failed:", error);
+        saveStatus.textContent = "JPEG export failed.";
+      });
+    });
+
+    window.addEventListener("keydown", event => {
+      const activeElement = document.activeElement;
+      const editing = Boolean(
+        activeElement &&
+        activeElement instanceof HTMLElement &&
+        activeElement.matches(".card__title, .card__body")
+      );
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d" && selectedId) {
+        event.preventDefault();
+        duplicateCard(selectedId);
+        return;
+      }
+
+      if (editing) {
+        return;
+      }
+
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
+        event.preventDefault();
+        deleteCard(selectedId);
+      }
+
+      if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        addCard("note");
+      }
+
+      if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        addCard("frame");
+      }
+
+      if (event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        setDrawMode(!drawMode);
+      }
+
+      if (event.key === "Escape") {
+        setDrawMode(false);
+      }
+    });
+
+    window.addEventListener("resize", () => {
+      updateViewportMetrics();
+      if (!Number.isFinite(state.zoom) || !Number.isFinite(state.pan.x) || !Number.isFinite(state.pan.y)) {
+        centerBoard();
+      } else {
+        commitBoardTransform();
+      }
+    });
+
+    function init() {
+      updateViewportMetrics();
+      if (!Number.isFinite(state.zoom) || !Number.isFinite(state.pan.x) || !Number.isFinite(state.pan.y)) {
+        centerBoard();
+      } else {
+        commitBoardTransform();
+      }
+
+      renderCards();
+
+      renderBoardSketch();
+
+      setTool("draw");
+      setColor(activeInkColor, "swatch");
+      setDrawMode(false);
+      setHelpOpen(false);
+    }
+
+    init();
+  </script>
+</body>
+</html>
