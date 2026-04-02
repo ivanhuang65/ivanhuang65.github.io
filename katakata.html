@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>katakata</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg:  #f5f5f0;
+      --ink: #111111;
+      --page-gutter: 2.5rem;
+      --bleed-gutter: 1rem;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:  #0f0f0d;
+        --ink: #d4d0c8;
+      }
+    }
+
+    html {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'IBM Plex Mono', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    body {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 var(--page-gutter);
+      overflow-x: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* ── HEADER ── */
+
+    .top {
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      padding-top: 4rem;
+      padding-bottom: 2.5rem;
+    }
+
+    .site-name {
+      font-size: 8rem;
+      line-height: 1;
+      white-space: nowrap;
+      display: block;
+      width: max-content;
+      transform-origin: left top;
+    }
+
+    .bar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      padding: 0.6rem var(--bleed-gutter);
+      border-top: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+      margin-bottom: 5rem;
+    }
+
+    .bar nav {
+      display: flex;
+      gap: 2rem;
+    }
+
+    .bar nav a {
+      opacity: 0.55;
+    }
+
+    .bar nav a:hover {
+      opacity: 1;
+      text-decoration: none;
+    }
+
+    /* ── TWO COLUMNS ── */
+
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: start;
+    }
+
+    /* ── LEFT: ISSUES ── */
+
+    .col-issues {}
+
+    .issue-header {
+      margin-bottom: 2rem;
+    }
+
+    .issue-art {
+      margin: 0 0 1.2rem;
+      opacity: 0.68;
+      font-size: 0.58rem;
+      line-height: 1.05;
+      white-space: pre;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .issue-art::-webkit-scrollbar {
+      display: none;
+    }
+
+    .issue-label,
+    .section-label {
+      opacity: 0.45;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+      font-size: inherit;
+    }
+
+    .section-label {
+      margin-bottom: 2rem;
+    }
+
+    .piece {
+      padding: 1.2rem 0 1.4rem;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    }
+
+    .piece-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      opacity: 0.45;
+      margin-bottom: 0.55rem;
+      font-size: inherit;
+    }
+
+    .piece-title {
+      font-size: inherit;
+      font-weight: 400;
+      line-height: 1.7;
+      margin-bottom: 0.7rem;
+    }
+
+    .read-more {
+      display: inline-block;
+      opacity: 0.6;
+    }
+
+    .read-more:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+
+    /* ── RIGHT: ABOUT + SUBMIT ── */
+
+    .col-info {
+      border-left: 1px solid var(--ink);
+      border-color: color-mix(in srgb, var(--ink) 15%, transparent);
+      padding-left: 3rem;
+    }
+
+    .section {
+      padding-bottom: 3rem;
+    }
+
+    .section-body p {
+      margin-bottom: 1em;
+      opacity: 0.9;
+      max-width: 34ch;
+    }
+
+    .section-body p:last-child {
+      margin-bottom: 0;
+    }
+
+    .submit-section {
+      padding-top: 1.5rem;
+      border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+    }
+
+    .submit-email {
+      margin-top: 2rem;
+    }
+
+    .submit-email a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.8rem;
+      border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+      text-decoration: none;
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+
+    .submit-email a::after {
+      content: '→';
+    }
+
+    .submit-email a:hover {
+      background: color-mix(in srgb, var(--ink) 6%, transparent);
+      border-color: color-mix(in srgb, var(--ink) 35%, transparent);
+    }
+
+    /* ── FOOTER ── */
+
+    footer {
+      margin-top: 4rem;
+      padding: 1.5rem 0 4rem;
+      border-top: 1px solid var(--ink);
+      border-color: color-mix(in srgb, var(--ink) 15%, transparent);
+      opacity: 0.5;
+    }
+
+    /* ── RESPONSIVE ── */
+
+    @media (max-width: 640px) {
+      :root {
+        --page-gutter: 1rem;
+        --bleed-gutter: 0.6rem;
+      }
+
+      .columns {
+        grid-template-columns: 1fr;
+      }
+
+      .bar {
+        gap: 1rem;
+        align-items: flex-start;
+        flex-direction: column;
+        margin-bottom: 3rem;
+      }
+
+      .col-info {
+        border-left: none;
+        border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+        padding-left: 0;
+        padding-top: 4rem;
+      }
+
+      .piece-meta {
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="top">
+    <div class="site-name" id="siteTitle">katakata</div>
+  </div>
+
+  <div class="bar">
+    <nav>
+      <a href="#issues">issues</a>
+      <a href="#about">about</a>
+      <a href="#submit">submit</a>
+    </nav>
+  </div>
+
+
+  <div class="columns">
+
+    <!-- LEFT COLUMN -->
+    <div class="col-issues" id="issues">
+
+      <div class="issue-header">
+        <pre class="issue-art" aria-hidden="true">      |       |        |       | |
+ ' |   |   |     '  |      '
+              |           |     |
+ '     |  _,..--I--..,_ |
+   / _.-`` _,-`   `-,_ ``-._ \ lt.
+     `-,_,_,.,_   _,.,_._,-`
+|  | '   '     `Y` __ '     '
+  '|        ,-. I /  \       |  |
+ |    |    /   )I \  /     '   |
+'  '      /   / I_.""._ 
+|  |    ,l  .'..`      `.   ' |  |
+ |     / | /   \        l
+      /, '"  .  \      ||   |   |
+ |  ' ||      |"|      ||   |
+'     ||      | |      ||       |
+|     \|      | '.____,'/  |  |
+   |   |      |  |    |F   '    |
+ | '   |      |  | |\ |     ' |
+       |      |  | || |      |
+|  |   |      |  | || |    |    |
+       |      |  | || |      |
+ ' |   '.____,'  \_||_/   |    |
+         |/\|    [_][_]      |
+""""""""""""""""""""""""""""""""""</pre>
+        <div class="issue-label">issue 01 — after rain — april 2026</div>
+      </div>
+
+      <div class="piece">
+        <div class="piece-meta">
+          <span>fiction</span>
+          <span>priya nair</span>
+        </div>
+        <div class="piece-title">the men who stayed</div>
+        <a class="read-more" href="#">read →</a>
+      </div>
+
+      <div class="piece">
+        <div class="piece-meta">
+          <span>puisi</span>
+          <span>ahmad farouk musa</span>
+        </div>
+        <div class="piece-title">orang-orang di tepi jalan</div>
+        <a class="read-more" href="#">baca →</a>
+      </div>
+
+      <div class="piece">
+        <div class="piece-meta">
+          <span>essay</span>
+          <span>lin mei xian</span>
+        </div>
+        <div class="piece-title">on not going home</div>
+        <a class="read-more" href="#">read →</a>
+      </div>
+
+      <div class="piece">
+        <div class="piece-meta">
+          <span>cerpen</span>
+          <span>nurul ain ibrahim</span>
+        </div>
+        <div class="piece-title">sebelum subuh</div>
+        <a class="read-more" href="#">baca →</a>
+      </div>
+
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col-info">
+
+      <div class="section" id="about">
+        <div class="section-label">about</div>
+        <div class="section-body">
+          <p>katakata publishes fiction, poetry, and essays in english and bahasa malaysia.</p>
+          <p>we read both languages without preference. we want work that is precise and grounded.</p>
+          <p>based in kuala lumpur.</p>
+        </div>
+      </div>
+
+      <div class="section submit-section" id="submit">
+        <div class="section-label">submit</div>
+        <div class="section-body">
+          <p>send fiction, poetry, and essays in english or bahasa malaysia. simultaneous submissions are fine; let us know if the work is accepted elsewhere.</p>
+          <p>fiction and essays: up to 3,500 words. poetry: up to five poems. reply within eight weeks.</p>
+        </div>
+        <div class="submit-email">
+          <a href="mailto:submit@katakata.my">submit@katakata.my</a>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <footer>
+    katakata — kuala lumpur — all rights remain with the authors
+  </footer>
+
+
+  <script>
+    const el = document.getElementById('siteTitle');
+
+    function stretch() {
+      el.style.transform = 'none';
+      const scale = el.parentElement.clientWidth / el.scrollWidth;
+      el.style.transform = 'scaleX(' + scale + ')';
+    }
+
+    document.fonts.ready.then(stretch);
+    window.addEventListener('resize', stretch);
+  </script>
+
+</body>
+</html>
