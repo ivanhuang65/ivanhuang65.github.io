@@ -64,6 +64,20 @@ button,input,select{font:var(--fnt);color:#000}
 .vsep{width:2px;height:20px;margin:0 3px;border-left:1px solid var(--sh);border-right:1px solid var(--hl)}
 
 #body{flex:1;display:grid;grid-template-columns:178px 1fr 232px;gap:3px;min-height:0}
+/* A phone held sideways has the room for all three columns, but not to
+   spare, so they tighten up rather than squeezing the viewport away. */
+@media (max-width:900px){
+  #body{grid-template-columns:150px 1fr 186px;gap:2px}
+  #pPrevBox{width:200px;height:170px}
+  #pPrev{max-width:192px;max-height:162px}
+  .dlg{max-width:96vw}
+}
+#rot{position:fixed;inset:0;z-index:400;background:var(--desk);
+  display:none;align-items:center;justify-content:center}
+body.portrait #rot{display:flex}
+body.portrait #shell{visibility:hidden}
+#rot .dlg{width:250px}
+#rotArt{font-size:34px;line-height:1;margin:4px 0 10px}
 .col{display:flex;flex-direction:column;gap:4px;min-height:0;
   overflow-y:auto;overflow-x:hidden;scrollbar-gutter:stable;padding-right:2px}
 .col>*,.col fieldset,.col .gap>*{min-width:0}
@@ -88,14 +102,19 @@ select,input[type=text]{background:#fff;padding:2px 3px;
   border:2px solid;border-color:var(--sh) var(--hl) var(--hl) var(--sh);box-shadow:inset 1px 1px 0 var(--dk)}
 
 ::-webkit-scrollbar{width:16px;height:16px;background:repeating-conic-gradient(#fff 0% 25%,var(--face) 0% 50%) 50%/2px 2px}
-::-webkit-scrollbar-button:vertical:start,::-webkit-scrollbar-button:vertical:end{
+/* WebKit puts a button at each end for both directions, so styling
+   :start and :end alone yields two arrows top and bottom. Only the
+   decrement at the top and the increment at the bottom are wanted. */
+::-webkit-scrollbar-button:vertical:start:increment,
+::-webkit-scrollbar-button:vertical:end:decrement{display:none}
+::-webkit-scrollbar-button:vertical:start:decrement,::-webkit-scrollbar-button:vertical:end:increment{
   height:16px;background:var(--face) no-repeat center;
   border:2px solid;border-color:var(--hl) var(--dk) var(--dk) var(--hl);
   box-shadow:inset 1px 1px 0 var(--lt),inset -1px -1px 0 var(--sh)}
-::-webkit-scrollbar-button:vertical:start{
+::-webkit-scrollbar-button:vertical:start:decrement{
   background-image:linear-gradient(transparent,transparent);
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='4'><path d='M3.5 0 7 4H0z'/></svg>")}
-::-webkit-scrollbar-button:vertical:end{
+::-webkit-scrollbar-button:vertical:end:increment{
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='4'><path d='M3.5 4 0 0h7z'/></svg>")}
 ::-webkit-scrollbar-button:horizontal{width:0;height:0}
 ::-webkit-scrollbar-thumb{background:var(--face);border:2px solid;border-color:var(--hl) var(--dk) var(--dk) var(--hl);
@@ -137,6 +156,17 @@ select,input[type=text]{background:#fff;padding:2px 3px;
   border:2px solid;border-color:var(--sh) var(--hl) var(--hl) var(--sh)}
 #pPrev{display:block;max-width:332px;max-height:292px}
 #pCtl{width:158px;flex:none}
+#sPrevBox{width:330px;height:340px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:#8a8a8a;border:2px solid;border-color:var(--sh) var(--hl) var(--hl) var(--sh)}
+#sPrev{display:block;max-width:322px;max-height:332px;touch-action:none;cursor:move}
+/* Tied to the preview's width so a long list can never push the dialog
+   wider than the screen; it wraps inside that width and scrolls after two
+   rows. */
+#sTabs{width:330px;flex-wrap:wrap;max-height:48px;overflow-y:auto;overflow-x:hidden;
+  flex:none;align-content:flex-start}
+#sTabs button{flex:none;max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sCtl{width:206px;flex:none}
+#kkl{float:left;margin:1px 10px 4px 0;image-rendering:auto}
 #pCtl .gap{margin-top:2px}
 #cPrev{width:100%;height:36px;margin-top:3px;border:2px solid;
   border-color:var(--sh) var(--hl) var(--hl) var(--sh)}
@@ -195,8 +225,7 @@ select,input[type=text]{background:#fff;padding:2px 3px;
       <div class="msep"></div>
       <div class="mi" data-a="save">Save Picture...<span>Ctrl+S</span></div>
       <div class="mi" data-a="sheet">Save Placement Plan...</div>
-      <div class="mi" data-a="stencil">Save Selected Stencil at 1:1...</div>
-      <div class="mi" data-a="stencilall">Save All Stencils (.zip)...</div>
+      <div class="mi" data-a="stencil">Save Stencils...</div>
     </div>
     <div class="dd" id="mEdit">
       <div class="mi" data-a="undo">Undo<span>Ctrl+Z</span></div>
@@ -204,7 +233,6 @@ select,input[type=text]{background:#fff;padding:2px 3px;
       <div class="msep"></div>
       <div class="mi" data-a="dupe">Duplicate<span>Ctrl+D</span></div>
       <div class="mi" data-a="renameDesign">Rename Design...</div>
-      <div class="mi" data-a="mirror">Mirror to Other Side<span>M</span></div>
       <div class="mi" data-a="flip">Flip Design<span>F</span></div>
       <div class="msep"></div>
       <div class="mi" data-a="del">Remove<span>Del</span></div>
@@ -334,7 +362,6 @@ select,input[type=text]{background:#fff;padding:2px 3px;
         </div>
         <div class="gap" style="margin-top:3px">
           <button class="tbtn" data-a="renameDesign">Rename</button>
-          <button class="tbtn" data-a="mirror">Mirror</button>
         </div>
       </fieldset>
 
@@ -380,11 +407,14 @@ select,input[type=text]{background:#fff;padding:2px 3px;
 <div class="mod" id="about"><div class="dlg" style="width:340px">
   <div class="tbar"><span class="ttl">About SIGIL95</span><button class="tb" id="aX">✕</button></div>
   <div class="dbody" style="display:block;line-height:1.7">
-    <b>SIGIL95</b><br>Tattoo placement planner<br>Version 1.0<br><br>
+    <img id="kkl" alt="kura kura labs" width="86" src="data:image/png;base64,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">
+    <b>SIGIL95</b><br>Tattoo placement planner<br>Version 1.0 &middot; build 2026-09-12<br>
+    made by kura kura labs<br>
+    <span id="licRow">Licensed to <b id="licName">unlicensed build</b><br></span><br>
     Drag to turn &nbsp; scroll to zoom &nbsp; right-drag to pan<br>
     Click the body to place a design, drag it to move<br>
     Hold <b>S</b> to resize &nbsp; hold <b>R</b> to rotate<br>
-    <b>1 2 3 4</b> views &nbsp; <b>0</b> frame &nbsp; <b>M</b> mirror &nbsp; <b>F</b> flip &nbsp; <b>P</b> preview<br><br>
+    <b>1 2 3 4</b> views &nbsp; <b>0</b> frame &nbsp; <b>F</b> flip &nbsp; <b>P</b> preview<br><br>
     <span style="color:#404040">
       three.js r128 — MIT<br>
       Pixelated MS Sans Serif by “lou”, FontStruct — CC BY-SA 3.0<br>
@@ -392,6 +422,47 @@ select,input[type=text]{background:#fff;padding:2px 3px;
     </span>
   </div>
   <div class="dfoot"><div style="flex:1"></div><button class="tbtn" id="aOk" style="min-width:70px">OK</button></div>
+</div></div>
+
+<div id="rot"><div class="dlg">
+  <div class="tbar"><span class="ttl">SIGIL95</span></div>
+  <div class="dbody" style="display:block;text-align:center;padding:14px">
+    <div id="rotArt">&#x21bb;</div>
+    Turn your phone sideways.<br><br>
+    <span style="color:#404040">The controls need the width.</span>
+  </div>
+  <div class="dfoot"><div style="flex:1"></div>
+    <button class="tbtn" id="rotFs" style="min-width:96px">Full screen</button></div>
+</div></div>
+
+<div class="mod" id="sdlg"><div class="dlg" style="width:598px">
+  <div class="tbar"><span class="ttl">Save Stencils</span><button class="tb" id="sX">&#10005;</button></div>
+  <div class="dbody" style="display:flex;gap:12px;padding:10px 12px">
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div id="sTabs" class="gap"></div>
+      <div id="sPrevBox"><canvas id="sPrev"></canvas></div>
+    </div>
+    <div id="sCtl">
+      <label class="f">Artwork</label>
+      <div class="gap">
+        <button class="tbtn on" data-so="auto">Auto</button>
+        <button class="tbtn" data-so="up">Upright</button>
+        <button class="tbtn" data-so="side">Sideways</button>
+      </div>
+      <label class="f" style="margin-top:8px">Sheet overlap</label>
+      <div class="gap">
+        <button class="tbtn" data-sv="5">5 mm</button>
+        <button class="tbtn on" data-sv="10">10 mm</button>
+        <button class="tbtn" data-sv="20">20 mm</button>
+      </div>
+      <label class="f" style="margin-top:9px">File name: <b>.pdf</b></label>
+      <input type="text" id="sName" style="width:100%">
+    </div>
+  </div>
+  <div class="dfoot"><b id="sInfo" style="flex:1;color:#000080"></b>
+    <button class="tbtn" id="sOne" style="min-width:88px">Save selected</button>
+    <button class="tbtn" id="sAll" style="min-width:66px">Save all</button>
+    <button class="tbtn" id="sCancel" style="min-width:66px">Cancel</button></div>
 </div></div>
 
 <div class="mod" id="ndlg"><div class="dlg" style="width:300px">
@@ -438,8 +509,8 @@ select,input[type=text]{background:#fff;padding:2px 3px;
         <button class="tbtn on" data-cnr="tr">Top R</button>
       </div>
       <div class="gap">
-        <button class="tbtn" data-cnr="bl">Bot L</button>
-        <button class="tbtn" data-cnr="br">Bot R</button>
+        <button class="tbtn" data-cnr="bl">Bottom L</button>
+        <button class="tbtn" data-cnr="br">Bottom R</button>
       </div>
       <label class="f" style="margin-top:9px">File name: <b>.png</b></label>
       <input type="text" id="pName" style="width:100%">
@@ -901,33 +972,74 @@ function smoothField(f, adj, passes, tmp) {
   }
 }
 
+/* A tall narrow blob reads as a cone against a body this smooth, so the
+   lobe is broad and shallow rather than small and steep, and the field gets
+   more relaxing passes before it is applied. Same projection, far gentler
+   fold where it meets the ribs. */
 function bust(pos, nrm, C, P) {
   var n = pos.length / 3, H = P.height;
-  var amp = P.bust * 0.051 * H;
+  var amp = P.bust * 0.054 * H;
   var f = C.field, tmp = C.fieldTmp;
-  var cx = 0.040, cy = 0.742, rx = 0.045, ry = 0.062;
+  if (!C.crease || C.crease.length !== n) C.crease = new Float32Array(n);
+  var cr = C.crease;
+  var cx = 0.040, cy = 0.742, rx = 0.062, ry = 0.080;
+
 
   for (var i = 0; i < n; i++) {
     var o = i * 3, nz = nrm[o + 2];
-    if (nz <= 0.02) { f[i] = 0; continue; }
-    var q = (Math.abs(pos[o]) / H - cx) / rx;
-    var r = (pos[o + 1] / H - cy) / ry;
+    if (nz <= 0.02) { f[i] = 0; cr[i] = 0; continue; }
+    var ax = Math.abs(pos[o]) / H, ay = pos[o + 1] / H;
+    var q = (ax - cx) / rx;
+    var r = (ay - cy) / ry;
     var d2 = q * q + r * r;
-    if (d2 >= 1) { f[i] = 0; continue; }
-    var t = 1 - Math.sqrt(d2);
-    var fall = t * t * (3 - 2 * t);
-    var fw = Math.min(1, (nz - 0.02) / 0.38);
-    f[i] = fall * fw * fw * (3 - 2 * fw);
-  }
-  smoothField(f, C.adj, 3, tmp);
+    var fwn = Math.min(1, (nz - 0.02) / 0.38);
+    fwn = fwn * fwn * (3 - 2 * fwn);
 
+    if (d2 >= 1) { f[i] = 0; }
+    else {
+      var t = 1 - Math.sqrt(d2);
+      f[i] = t * t * (3 - 2 * t) * fwn;
+    }
+
+    /* A breast is not a bulge: it overhangs, and the line where it meets the
+       ribs is the one edge on it that is meant to be sharp. The volume above
+       stays smooth and a narrow tuck is cut along that line instead.
+
+       The line is found from the lobe's own falloff rather than from a box:
+       wherever the field is part way down and we are below the centre, we
+       are on the lower rim. A box reached the sternum and dented the middle
+       of the chest instead. */
+    var band = 0;
+    if (r < 0 && f[i] > 0.12 && f[i] < 0.46) {
+      band = Math.sin(Math.PI * (f[i] - 0.12) / 0.34);
+    }
+    cr[i] = band * fwn;
+  }
+
+  smoothField(f, C.adj, 7, tmp);
+  smoothField(cr, C.adj, 1, tmp);        // barely relaxed, or the fold goes
+
+  /* Below the fold is ribcage, and a ribcage does not grow with the bust.
+     Relaxing the field spreads it downward, so it is cut off again after the
+     event: the volume stops at the fold line and the chest underneath keeps
+     the shape it had. The hard edge left behind is the fold itself. */
+  for (var m = 0; m < n; m++) {
+    if (f[m] <= 0) continue;
+    var rr = (pos[m * 3 + 1] / H - cy) / ry;
+    if (rr >= -0.35) continue;
+    var gt = (rr + 0.78) / 0.43;
+    gt = gt < 0 ? 0 : gt > 1 ? 1 : gt;
+    f[m] *= gt * gt * (3 - 2 * gt);
+  }
+
+  var tuck = P.bust * 0.016 * H;
   for (var j = 0; j < n; j++) {
-    var k = amp * f[j];
-    if (k <= 1e-6) continue;
-    var b = j * 3;
-    pos[b] += nrm[b] * k;
-    pos[b + 1] += nrm[b + 1] * k;
-    pos[b + 2] += nrm[b + 2] * k;
+    var k = amp * f[j] - tuck * cr[j];
+    if (k > -1e-6 && k < 1e-6) continue;
+    var b2 = j * 3;
+    pos[b2] += nrm[b2] * k;
+    pos[b2 + 1] += nrm[b2 + 1] * k;
+    pos[b2 + 2] += nrm[b2 + 2] * k;
   }
 }
 
@@ -1425,6 +1537,145 @@ if (typeof module !== 'undefined' && module.exports) module.exports = API;
 else root.Decal = API;
 })(typeof self !== 'undefined' ? self : this);
 
+</script><script>
+/* A small PDF writer, enough to put one image on each page at an exact
+   physical size.
+
+   A PNG prints at whatever scale the print dialog feels like, which is fine
+   for a reference sheet and useless for a stencil that has to come out at
+   1:1. A PDF carries its page size in points, so "A4, actual size" means the
+   same thing to every printer.
+
+   Two kinds of image go in. Line art is packed one bit to the pixel and
+   stored raw, which keeps a 300 dpi A4 page near a megabyte and keeps every
+   edge exactly where it was drawn. Anything with shading goes in as JPEG,
+   which the format takes verbatim, no re-encoding at this end. */
+(function (root) {
+'use strict';
+
+var MM = 72 / 25.4;                       // points per millimetre
+var A4 = { w: 210 * MM, h: 297 * MM };
+
+function bytes(str) {
+  var a = new Uint8Array(str.length);
+  for (var i = 0; i < str.length; i++) a[i] = str.charCodeAt(i) & 0xff;
+  return a;
+}
+
+/* One bit per pixel, 1 for white, rows padded to whole bytes, which is what
+   DeviceGray at 1 bit expects. */
+function packBitonal(cv, threshold) {
+  var w = cv.width, h = cv.height;
+  var src = cv.getContext('2d').getImageData(0, 0, w, h).data;
+  var rowBytes = (w + 7) >> 3;
+  var out = new Uint8Array(rowBytes * h);
+  var t = (threshold === undefined ? 160 : threshold) << 8;
+
+  /* Eight million pixels a sheet, so the inner loop earns some care: integer
+     luminance rather than floats, a byte built up in a register instead of
+     eight read-modify-writes to the array, and a fast path for the opaque
+     pixels that make up nearly all of a stencil. */
+  for (var y = 0; y < h; y++) {
+    var ro = y * rowBytes, so = y * w * 4;
+    var bits = 0, nb = 0, bo = ro;
+    for (var x = 0; x < w; x++) {
+      var o = so + (x << 2);
+      var a = src[o + 3], lum;
+      if (a === 255) {
+        lum = src[o] * 77 + src[o + 1] * 150 + src[o + 2] * 29;
+      } else if (a === 0) {
+        lum = 65280;                                   // 255 << 8, bare paper
+      } else {
+        var l = src[o] * 77 + src[o + 1] * 150 + src[o + 2] * 29;
+        lum = ((l * a) + 65280 * (255 - a)) / 255 | 0;
+      }
+      bits = (bits << 1) | (lum >= t ? 1 : 0);
+      if (++nb === 8) { out[bo++] = bits; bits = 0; nb = 0; }
+    }
+    if (nb) out[bo] = bits << (8 - nb);
+  }
+  return { data: out, w: w, h: h, kind: 'g1' };
+}
+
+function jpegOf(cv, quality) {
+  var url = cv.toDataURL('image/jpeg', quality === undefined ? 0.92 : quality);
+  var b64 = url.slice(url.indexOf(',') + 1);
+  var bin = atob(b64);
+  var a = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i);
+  return { data: a, w: cv.width, h: cv.height, kind: 'jpeg' };
+}
+
+/* pages: [{ img, x, y, w, h }] with the placement in millimetres, measured
+   from the bottom left as PDF does. */
+function build(pages, page) {
+  var pw = (page && page.w) || A4.w, ph = (page && page.h) || A4.h;
+  var chunks = [], len = 0, offsets = [0];
+
+  function put(x) {
+    var b = typeof x === 'string' ? bytes(x) : x;
+    chunks.push(b); len += b.length;
+  }
+  function obj(n, body, stream) {
+    offsets[n] = len;
+    put(n + ' 0 obj\n' + body + '\n');
+    if (stream) { put('stream\n'); put(stream); put('\nendstream\n'); }
+    put('endobj\n');
+  }
+
+  var nPages = pages.length;
+  // 1 catalog, 2 page tree, then per page: page, contents, image
+  var kids = [];
+  for (var i = 0; i < nPages; i++) kids.push((3 + i * 3) + ' 0 R');
+
+  put('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n');
+  obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2, '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + nPages + ' >>');
+
+  pages.forEach(function (p, k) {
+    var pageId = 3 + k * 3, contId = pageId + 1, imgId = pageId + 2;
+    var x = p.x * MM, y = p.y * MM, w = p.w * MM, h = p.h * MM;
+    var content = 'q\n' + w.toFixed(3) + ' 0 0 ' + h.toFixed(3) + ' ' +
+                  x.toFixed(3) + ' ' + y.toFixed(3) + ' cm\n/Im0 Do\nQ\n';
+    obj(pageId,
+        '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pw.toFixed(2) + ' ' + ph.toFixed(2) + ']' +
+        ' /Resources << /XObject << /Im0 ' + imgId + ' 0 R >> >>' +
+        ' /Contents ' + contId + ' 0 R >>');
+    obj(contId, '<< /Length ' + content.length + ' >>', content);
+
+    var im = p.img, dict;
+    if (im.kind === 'jpeg') {
+      dict = '<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h +
+             ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode' +
+             ' /Length ' + im.data.length + ' >>';
+    } else {
+      dict = '<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h +
+             ' /ColorSpace /DeviceGray /BitsPerComponent 1' +
+             ' /Length ' + im.data.length + ' >>';
+    }
+    obj(imgId, dict, im.data);
+  });
+
+  var xref = len;
+  var total = 3 + nPages * 3;
+  var x = 'xref\n0 ' + total + '\n0000000000 65535 f \n';
+  for (var n = 1; n < total; n++) {
+    x += ('0000000000' + (offsets[n] || 0)).slice(-10) + ' 00000 n \n';
+  }
+  x += 'trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xref + '\n%%EOF\n';
+  put(x);
+
+  var out = new Uint8Array(len), at = 0;
+  chunks.forEach(function (c) { out.set(c, at); at += c.length; });
+  return out;
+}
+
+var API = { build: build, packBitonal: packBitonal, jpegOf: jpegOf, MM: MM, A4: A4 };
+if (typeof module !== 'undefined' && module.exports) module.exports = API;
+else root.PDFOut = API;
+
+})(typeof self !== 'undefined' ? self : this);
+
 </script>
 <script>
 /* ============================================================
@@ -1494,7 +1745,15 @@ ground.position.y = 0.001;
 scene.add(ground);
 
 var skinMat = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(skinColour), roughness: 0.74, metalness: 0.0
+  color: new THREE.Color(skinColour), roughness: 0.74, metalness: 0.0,
+  /* Designs sit on the skin, lifted along its normal. That lift buys nothing
+     at the silhouette, where the normal points across the view rather than
+     toward it, and the skin wins the depth test in patches and cuts into the
+     artwork. Nudging the body's own depth back closes the gap exactly where
+     it opens: the offset is slope-scaled, so it grows at grazing angles and
+     is negligible face-on. A design on the far side of a limb is centimetres
+     behind and still hidden. */
+  polygonOffset: true, polygonOffsetFactor: 2.5, polygonOffsetUnits: 4
 });
 /* Stylised skin: ordered dither plus posterisation, applied to the body's
    own shader so uploaded designs keep their full resolution. Screen-space,
@@ -1811,18 +2070,86 @@ function resnapDecal(d) { anchorFromMesh(d); }
 /* ============================================================
    INK — turn a source image into skin-readable ink
    ============================================================ */
+/* Artwork usually arrives with transparent margins round it. Left in, the
+   design measures bigger than the tattoo actually is, which throws off the
+   size on the body and can turn a two-sheet stencil into four. So the empty
+   border is trimmed once, when the image lands, and everything downstream
+   works from the ink itself. */
+function inkBox(img) {
+  var w = img.naturalWidth, h = img.naturalHeight;
+  var s = Math.min(1, 600 / Math.max(w, h));
+  var pw = Math.max(1, Math.round(w * s)), ph = Math.max(1, Math.round(h * s));
+  var c = document.createElement('canvas');
+  c.width = pw; c.height = ph;
+  var x = c.getContext('2d');
+  x.drawImage(img, 0, 0, pw, ph);
+  var data;
+  try { data = x.getImageData(0, 0, pw, ph).data; } catch (_) { return null; }
+
+  /* A hard threshold is no good here: artwork often carries a faint haze of
+     almost-transparent pixels across the background, and one stray speck in
+     a corner was enough to defeat the trim and leave the piece measuring the
+     whole sheet. So each pixel contributes its weight, and the edges are
+     pulled in until only a whisker of the total ink is left outside. */
+  var colw = new Float64Array(pw), roww = new Float64Array(ph), total = 0;
+  for (var yy = 0; yy < ph; yy++) {
+    for (var xx = 0; xx < pw; xx++) {
+      var o = (yy * pw + xx) * 4;
+      var a = data[o + 3] / 255;
+      if (a <= 0.02) continue;
+      var lum = (data[o] * 0.299 + data[o + 1] * 0.587 + data[o + 2] * 0.114) / 255;
+      var ink = a * (1 - lum);              // dark and solid counts most
+      if (ink < 0.02) continue;
+      colw[xx] += ink; roww[yy] += ink; total += ink;
+    }
+  }
+  if (total <= 0) return null;
+
+  /* The floor is set against the densest line in the piece rather than
+     against the total, because a haze spread evenly over the background
+     never accumulates enough to be trimmed by a percentile alone. */
+  function bound(arr, n) {
+    var peak = 0, i;
+    for (i = 0; i < n; i++) if (arr[i] > peak) peak = arr[i];
+    var floor = peak * 0.012;
+    var lo = 0, hi = n - 1;
+    while (lo < hi && arr[lo] <= floor) lo++;
+    while (hi > lo && arr[hi] <= floor) hi--;
+    return [lo, hi];
+  }
+  var bx = bound(colw, pw), by = bound(roww, ph);
+  if (bx[1] < bx[0] || by[1] < by[0]) return null;
+  var k = 1 / s;
+  return [bx[0] * k, by[0] * k, (bx[1] - bx[0] + 1) * k, (by[1] - by[0] + 1) * k];
+}
+
+function trimOf(d) {
+  if (d.trim === undefined) {
+    var b = inkBox(d.img);
+    var W = d.img.naturalWidth, H = d.img.naturalHeight;
+    // ignore a trim that barely changes anything
+    d.trim = (b && (b[2] < W * 0.995 || b[3] < H * 0.995)) ? b : null;
+  }
+  return d.trim || [0, 0, d.img.naturalWidth, d.img.naturalHeight];
+}
+
 function renderInk(d) {
-  var img = d.img, MAX = 1100;
-  var s = Math.min(1, MAX / Math.max(img.naturalWidth, img.naturalHeight));
-  var w = Math.max(1, Math.round(img.naturalWidth * s));
-  var h = Math.max(1, Math.round(img.naturalHeight * s));
+  var img = d.img, MAX = 1100, t = trimOf(d);
+  var s = Math.min(1, MAX / Math.max(t[2], t[3]));
+  var w = Math.max(1, Math.round(t[2] * s));
+  var h = Math.max(1, Math.round(t[3] * s));
+  /* The canvas and the proportions have to agree, or the stencil tiles for a
+     size the artwork does not have. Whoever last drew the canvas owns the
+     aspect, so it is set here and nowhere else. */
+  d.aspect = w / h;
+  d.grid = null;
   var c = d.canvas || (d.canvas = document.createElement('canvas'));
   c.width = w; c.height = h;
   var ctx = c.getContext('2d');
   ctx.clearRect(0, 0, w, h);
   ctx.save();
   if (d.flip) { ctx.translate(w, 0); ctx.scale(-1, 1); }
-  ctx.drawImage(img, 0, 0, w, h);
+  ctx.drawImage(img, t[0], t[1], t[2], t[3], 0, 0, w, h);
   ctx.restore();
 
   var im = ctx.getImageData(0, 0, w, h), px = im.data;
@@ -1899,7 +2226,7 @@ function makeDecal(img, src, name) {
     id: ++seq,
     name: uniqueName(name || ('design ' + seq)),
     img: img, src: src,
-    aspect: img.naturalWidth / img.naturalHeight,
+    aspect: 1,   // set from the trimmed artwork once the image is ready
     placed: false,
     anchor: [0, 1.2, 0.12], anchorN: [0, 0.686, 0.069], normal: [0, 0, 1], tri: 0, bary: null, tanUV: null, tanTri: -1,
     roll: 0, sizeCm: 10, flip: false, opacity: 1, tan: null,
@@ -1910,7 +2237,7 @@ function makeDecal(img, src, name) {
   d.mat = new THREE.MeshStandardMaterial({
     map: d.tex, transparent: true, opacity: d.opacity,
     depthWrite: false, depthTest: true,
-    polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+    polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6,
     roughness: 0.66, metalness: 0
   });
   d.mesh = new THREE.Mesh(new THREE.BufferGeometry(), d.mat);
@@ -2201,6 +2528,7 @@ view.addEventListener('pointermove', function (e) {
   }
   if (drag.kind === 'decal') {
     var hb = hitBody(e);
+    // crossing to another limb mid-drag is wanted, so any hit is taken
     if (hb) { placeOffset(drag.d, hb, drag.off); measure(); drawPreview(); }
     return;
   }
@@ -2225,6 +2553,81 @@ function endDrag(e) {
 }
 view.addEventListener('pointerup', endDrag);
 view.addEventListener('pointercancel', endDrag);
+
+/* ---- touch ------------------------------------------------------------
+   A phone has no wheel, so two fingers do the zooming and the panning. The
+   pair is tracked separately from the one-finger drag, which is cancelled
+   the moment a second finger lands so the figure does not lurch. */
+var touches = new Map(), pinch = null;
+
+view.addEventListener('pointerdown', function (e) {
+  if (e.pointerType !== 'touch') return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 2) {
+    drag = null;
+    var p = [...touches.values()];
+    pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]),
+              x: (p[0][0] + p[1][0]) / 2, y: (p[0][1] + p[1][1]) / 2,
+              dist: cam.dist, tx: cam.tx, ty: cam.ty };
+  }
+}, true);
+
+view.addEventListener('pointermove', function (e) {
+  if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size !== 2 || !pinch) return;
+  e.preventDefault();
+  var p = [...touches.values()];
+  var d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]);
+  var mx = (p[0][0] + p[1][0]) / 2, my = (p[0][1] + p[1][1]) / 2;
+  if (pinch.d > 8 && d > 8) cam.dist = pinch.dist * (pinch.d / d);
+  var k = cam.dist * 0.0016;
+  cam.tx = pinch.tx - (mx - pinch.x) * k;
+  cam.ty = pinch.ty + (my - pinch.y) * k;
+  draw();
+}, { passive: false, capture: true });
+
+function endTouch(e) {
+  if (e.pointerType !== 'touch') return;
+  touches.delete(e.pointerId);
+  if (touches.size < 2) pinch = null;
+}
+view.addEventListener('pointerup', endTouch, true);
+view.addEventListener('pointercancel', endTouch, true);
+
+/* ---- orientation ------------------------------------------------------
+   Three columns of controls need the long side of the screen. Locking the
+   orientation outright only works from full screen, and not at all on iOS,
+   so the prompt is the thing that always works and the lock is a bonus. */
+function checkOrientation() {
+  var coarse = window.matchMedia && window.matchMedia('(pointer:coarse)').matches;
+  var narrow = Math.min(window.innerWidth, window.innerHeight) < 560;
+  var portrait = window.innerHeight > window.innerWidth;
+  document.body.classList.toggle('portrait', !!(coarse && narrow && portrait));
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', checkOrientation);
+checkOrientation();
+
+$('rotFs').onclick = function () {
+  var el = document.documentElement;
+  var go = el.requestFullscreen || el.webkitRequestFullscreen;
+  if (go) {
+    try {
+      var r = go.call(el);
+      if (r && r.then) r.then(lockLandscape, function () {});
+      else lockLandscape();
+    } catch (_) {}
+  }
+};
+function lockLandscape() {
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      var q = screen.orientation.lock('landscape');
+      if (q && q.catch) q.catch(function () {});
+    }
+  } catch (_) {}
+}
 
 view.addEventListener('wheel', function (e) {
   e.preventDefault();
@@ -2296,13 +2699,15 @@ function measure() {
   $('measTxt').textContent = w.toFixed(1) + ' \u00d7 ' + sel.sizeCm.toFixed(1) + ' cm';
 }
 
+var marked = [];
+
 function layerList() {
   var box = $('layers');
   box.innerHTML = '';
   if (!decals.length) { box.innerHTML = '<div class="empty">No designs yet</div>'; return; }
-  decals.forEach(function (d) {
+  decals.forEach(function (d, idx) {
     var row = document.createElement('div');
-    row.className = 'e' + (d === sel ? ' on' : '');
+    row.className = 'e' + (d === sel || marked.indexOf(d) >= 0 ? ' on' : '');
     var th = document.createElement('canvas');
     th.className = 'th'; th.width = th.height = 16;
     var c = th.getContext('2d');
@@ -2317,7 +2722,18 @@ function layerList() {
     row.appendChild(th); row.appendChild(nm);
     /* A second click on the name of a design already selected starts a
        rename, the way a file does. The first click only selects. */
-    row.onclick = function () {
+    row.onclick = function (e) {
+      /* Shift picks out a run, so a batch can go in one go. Everything other
+         than Remove works on the one design that was clicked last, which
+         keeps the rest of the buttons meaning exactly what they always did. */
+      if (e && e.shiftKey && sel && d !== sel) {
+        var a = decals.indexOf(sel), b = idx;
+        marked = decals.slice(Math.min(a, b), Math.max(a, b) + 1);
+        layerList();
+        status(marked.length + ' designs selected. Remove clears them all.');
+        return;
+      }
+      marked = [];
       if (d === sel && nm._armed) { renameDesign(d, nm); return; }
       select(d);
       nm._armed = false;
@@ -2477,24 +2893,6 @@ function viewPreset(az) {
   draw();
 }
 
-function mirror() {
-  if (!sel || !sel.placed) return;
-  pushUndo();
-  var d = cloneDecal(sel);
-  d.name = uniqueName(sel.name + ' (mirrored)');
-  d.flip = !sel.flip;
-  renderInk(d);
-  // reflect the anchor across the midline, then re-snap onto the surface
-  d.anchorN = [-sel.anchorN[0], sel.anchorN[1], sel.anchorN[2]];
-  d.normal = [-sel.normal[0], sel.normal[1], sel.normal[2]];
-  d.roll = -sel.roll;
-  d.placed = true;
-  resnapDecal(d);
-  rebuildDecal(d);
-  select(d);
-  status('Mirrored to the other side.');
-}
-
 function cloneDecal(s) {
   var d = makeDecal(s.img, s.src, copyName(s.name));
   d.aspect = s.aspect;
@@ -2512,7 +2910,16 @@ function act(a) {
     case 'redo': redo(); break;
     case 'del':
       if (!sel) return;
-      pushUndo(); removeDecal(sel); refreshAll(); draw();
+      pushUndo();
+      /* Take the whole marked run if there is one, then land on whatever now
+         sits at that spot, so Remove can be pressed again straight away. */
+      var doomed = marked.length ? marked.slice() : [sel];
+      var at = decals.indexOf(doomed[0]);
+      doomed.forEach(removeDecal);
+      marked = [];
+      var next = decals[Math.min(at, decals.length - 1)] || null;
+      if (next) select(next); else sel = null;
+      refreshAll(); draw();
       status('Removed.'); break;
     case 'clear':
       if (!decals.length) return;
@@ -2534,7 +2941,6 @@ function act(a) {
       c.placed = sel.placed;
       c.anchorN[1] += 0.03;
       resnapDecal(c); rebuildDecal(c); select(c); break;
-    case 'mirror': mirror(); refreshAll(); break;
     case 'flip':
       if (!sel) return;
       pushUndo(); sel.flip = !sel.flip; renderInk(sel); rebuildDecal(sel); break;
@@ -2547,8 +2953,7 @@ function act(a) {
     case 'v-reset': cam.az = 0; viewPreset(0); break;
     case 'save': openPicture(); break;
     case 'sheet': saveSheet(); break;
-    case 'stencil': saveStencil(); break;
-    case 'stencilall': saveAllStencils(); break;
+    case 'stencil': openStencil(); break;
     case 'savelayout': saveLayoutAs(); break;
     case 'rename': askName('Rename', 'Job name:', docName, setDocName); break;
     case 'openlayout': $('fl').click(); break;
@@ -2608,6 +3013,12 @@ addEventListener('paste', function (e) {
   intake(files);
   status(files.length > 1 ? 'Pasted ' + files.length + ' designs.' : 'Pasted a design.');
 });
+
+function downloadBytes(name, u8, mime) {
+  var url = URL.createObjectURL(new Blob([u8], { type: mime || 'application/octet-stream' }));
+  download(name, url);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
 
 function download(name, url) {
   var a = document.createElement('a');
@@ -2720,6 +3131,16 @@ function insetHeight() {
   return INSET.pad + INSET.head + 3 + (INSET.w - INSET.pad * 2) + 3 + INSET.foot + INSET.pad;
 }
 
+/* Names run long once designs have been duplicated a few times, and a
+   caption that overruns its own title bar looks broken. Trim to fit. */
+function fitText(x, str, room) {
+  if (!(room > 0)) return str;                 // no sensible room, leave it alone
+  if (x.measureText(str).width <= room) return str;
+  var out = str;
+  while (out.length > 1 && x.measureText(out + '\u2026').width > room) out = out.slice(0, -1);
+  return out + '\u2026';
+}
+
 function drawInset(x, d, bx, by) {
   var bw = INSET.w, art = bw - INSET.pad * 2, h = insetHeight();
   x.fillStyle = '#c0c0c0';
@@ -2728,16 +3149,18 @@ function drawInset(x, d, bx, by) {
 
   // caption bar
   var hx = bx + INSET.pad, hy = by + INSET.pad, hw = bw - INSET.pad * 2;
+  var bs = 15, btnW = 17;                    // the close button, declared up here
+                                             // because the caption has to leave room for it
   x.fillStyle = '#000080';
   x.fillRect(hx, hy, hw, INSET.head);
   x.fillStyle = '#ffffff';
   x.font = msFont(INSET.font, true);
   x.textBaseline = 'middle';
   x.textAlign = 'left';
-  x.fillText(d.name, hx + 4, hy + INSET.head / 2 + 1);
+  x.fillText(fitText(x, d.name, hw - btnW - 10), hx + 4, hy + INSET.head / 2 + 1);
 
   // the close button, drawn like every other one in the app
-  var bs = 15, bxx = hx + hw - bs - 2, byy = hy + (INSET.head - bs) / 2;
+  var bxx = hx + hw - bs - 2, byy = hy + (INSET.head - bs) / 2;
   x.fillStyle = '#c0c0c0'; x.fillRect(bxx, byy, 17, bs);
   bevel(x, bxx, byy, 17, bs, '#ffffff', '#000000');
   x.strokeStyle = '#000000'; x.lineWidth = 1;
@@ -2784,25 +3207,39 @@ function composePicture(shot, crop, k) {
   x.drawImage(shot, dx, dy, dw, dh);
 
   var list = PIC.include === 'sel' ? (sel && sel.canvas ? [sel] : [])
-           : PIC.include === 'all' ? decals.filter(function (d) { return d.canvas; }).slice(0, 4)
+           : PIC.include === 'all' ? decals.filter(function (d) { return d.canvas; }).slice(0, 16)
            : [];
   if (list.length) {
     /* Insets are laid out in interface pixels and the whole block is scaled
-       once. Sizing them from the output's pixel width was what made the
-       preview and the saved file disagree. */
+       once, so the preview and the saved file agree.
+
+       Once there are more than a column's worth, they run into a second
+       column rather than being quietly dropped or squeezed until the
+       captions no longer fit their boxes. */
     var m = (shot.width / (view.clientWidth || 1)) * k;
     var Lw = W / m, Lh = H / m;
-    var gap = 14, one = insetHeight();
-    var oldW = INSET.w;
-    while (list.length * (insetHeight() + gap) + gap > Lh && INSET.w > 90) INSET.w -= 6;
-    one = insetHeight();
+    var gap = 14, oldW = INSET.w;
+    var perCol, cols;
+    for (;;) {
+      perCol = Math.max(1, Math.floor((Lh - gap) / (insetHeight() + gap)));
+      cols = Math.ceil(list.length / perCol);
+      if (cols * (INSET.w + gap) + gap <= Lw * 0.55 || INSET.w <= 110) break;
+      INSET.w -= 6;
+    }
+    var one = insetHeight();
     var right = PIC.corner === 'tr' || PIC.corner === 'br';
-    var bx = right ? Lw - INSET.w - gap : gap;
-    var by = (PIC.corner === 'bl' || PIC.corner === 'br')
-      ? Lh - gap - list.length * (one + gap) + gap : gap;
+    var bottom = PIC.corner === 'bl' || PIC.corner === 'br';
     x.save();
     x.scale(m, m);
-    list.forEach(function (d) { by += drawInset(x, d, bx, by) + gap; });
+    list.forEach(function (d, i) {
+      var col = Math.floor(i / perCol), row = i % perCol;
+      var rows = Math.min(perCol, list.length - col * perCol);
+      var bx = right ? Lw - gap - (col + 1) * INSET.w - col * gap
+                     : gap + col * (INSET.w + gap);
+      var by = bottom ? Lh - gap - (rows - row) * (one + gap) + gap
+                      : gap + row * (one + gap);
+      drawInset(x, d, bx, by);
+    });
     x.restore();
     INSET.w = oldW;
   }
@@ -2824,22 +3261,27 @@ function savePicture() {
 
 /* Four-view sheet with a size list — the thing you actually send
    to the artist before the appointment. */
-function saveSheet() {
+function saveSheet(fileName) {
   // laid out from constants rather than guessed offsets, which is how the
   // divider ended up struck through the view captions
-  var W = 700, H = 980, TOP = 78, TILE = 300, CAP = 20, GAP = 22;
+  /* Laid out in a 700 x 990 space, which is A4's proportions, then drawn at
+     three times that. A whole-number factor matters: the interface font is a
+     bitmap drawn for eleven pixels, so 33 stays sharp where 2.36 would smear. */
+  var K = 3;
+  var W = 700, H = 990, TOP = 78, TILE = 300, CAP = 20, GAP = 22;
   var shots = [];
   var az = cam.az, pol = cam.pol, dist = cam.dist, tgt = cam.target.clone();
-  [['Front', 0], ['Back', Math.PI], ['Left', Math.PI / 2], ['Right', -Math.PI / 2]].forEach(function (v) {
+  var VIEWS = [['Front', 0], ['Back', Math.PI], ['Left', Math.PI / 2], ['Right', -Math.PI / 2]];
+  VIEWS.forEach(function (v) {
     viewPreset(v[1]); applyCam(); renderScene();
     shots.push([v[0], renderer.domElement.toDataURL('image/png')]);
   });
   cam.az = az; cam.pol = pol; cam.dist = dist; cam.target.copy(tgt); draw();
 
   var c = document.createElement('canvas');
-  c.width = W * 2; c.height = H * 2;
+  c.width = W * K; c.height = H * K;
   var x = c.getContext('2d');
-  x.scale(2, 2);
+  x.scale(K, K);
   x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
   x.fillStyle = '#111111'; x.font = msFont(22, true);
   x.fillText('Tattoo placement plan', 24, 36);
@@ -2857,7 +3299,8 @@ function saveSheet() {
       x.fillText(sh[0], px, py + 12);          // label above the view it names
       var sc = Math.min(cw / im.width, TILE / im.height);
       x.drawImage(im, px + (cw - im.width * sc) / 2, py + CAP, im.width * sc, im.height * sc);
-      if (++loaded === 4) finishSheet(x, W, H, TOP + 2 * (TILE + CAP + GAP));
+      if (++loaded === VIEWS.length)
+        finishSheet(x, W, H, TOP + Math.ceil(VIEWS.length / 2) * (TILE + CAP + GAP));
     };
     im.src = sh[1];
   });
@@ -2878,7 +3321,9 @@ function saveSheet() {
       x2.fillStyle = '#555555';
       x2.fillText(w + ' \u00d7 ' + d.sizeCm.toFixed(1) + ' cm', 320, y + 24 + i * 17);
     });
-    download(outName('plan', 'png'), c.toDataURL('image/png'));
+    downloadBytes(fileName || outName('plan', 'pdf'),
+      PDFOut.build([{ img: PDFOut.jpegOf(c, 0.94), x: 0, y: 0, w: 210, h: 297 }]),
+      'application/pdf');
     status('Placement plan saved.');
   }
 }
@@ -2886,156 +3331,357 @@ function saveSheet() {
 /* The design at its true planned size, ready to print and transfer. This is
    the step between planning and the appointment, and the one thing a
    placement tool can hand over that a reference photo cannot. */
-function stencilCanvas(d) {
-  var DPI = 300, perCm = DPI / 2.54, perIn = DPI;
-  var wCm = d.sizeCm * d.aspect, hCm = d.sizeCm;
-  var iw = Math.round(wCm * perCm), ih = Math.round(hCm * perCm);
-  var mL = Math.round(1.6 * perCm), mT = Math.round(1.6 * perCm);
-  var mR = Math.round(2.4 * perCm), mB = Math.round(4.4 * perCm);
+/* Stencils print at 300 dpi with a 10 mm margin the printer can reach.
 
-  var c = document.createElement('canvas');
-  c.width = iw + mL + mR; c.height = ih + mT + mB;
-  var x = c.getContext('2d');
-  x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
-  x.drawImage(d.canvas, mL, mT, iw, ih);
+   A piece larger than the sheet cannot simply be shrunk, so it is split and
+   lapped instead, and the artist decides the paper, which way the artwork
+   lies and how much overlap they want to trim into. Where the cuts fall is
+   the thing they actually need to see, so the dialog draws them. */
+var DPI = 300, MMPX = DPI / 25.4, MARGIN = 10;
+var PAPERS = { a4: [210, 297] };
+var STEN = { paper: 'a4', tab: 0 };
+var STEN_DEFAULTS = { orient: 'auto', overlap: 10 };
 
-  var hair = Math.max(2, Math.round(perCm / 90));
-  x.strokeStyle = '#111111'; x.lineWidth = hair;
-  x.lineCap = 'butt';
+/* Whatever the import trim made of it, the sheets are laid out around the
+   ink that is actually on the canvas. Measuring the thing about to be drawn
+   is the only way the count can be trusted; anything cached upstream can be
+   stale or can have failed quietly. */
+function canvasInk(cv) {
+  if (cv._inkW === cv.width && cv._inkH === cv.height && cv._ink) return cv._ink;
+  var w = cv.width, h = cv.height, data;
+  try { data = cv.getContext('2d').getImageData(0, 0, w, h).data; }
+  catch (_) { return [0, 0, w, h]; }
+  var col = new Float64Array(w), row = new Float64Array(h), any = 0;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      var o = (y * w + x) * 4, a = data[o + 3] / 255;
+      if (a <= 0.02) continue;
+      var lum = (data[o] * 0.299 + data[o + 1] * 0.587 + data[o + 2] * 0.114) / 255;
+      var ink = a * (1 - lum);
+      if (ink < 0.02) continue;
+      col[x] += ink; row[y] += ink; any = 1;
+    }
+  }
+  var box = [0, 0, w, h];
+  if (any) {
+    function bound(arr, n) {
+      var peak = 0, i;
+      for (i = 0; i < n; i++) if (arr[i] > peak) peak = arr[i];
+      var floor = peak * 0.012, lo = 0, hi = n - 1;
+      while (lo < hi && arr[lo] <= floor) lo++;
+      while (hi > lo && arr[hi] <= floor) hi--;
+      return [lo, hi];
+    }
+    var bx = bound(col, w), by = bound(row, h);
+    box = [bx[0], by[0], bx[1] - bx[0] + 1, by[1] - by[0] + 1];
+  }
+  cv._ink = box; cv._inkW = w; cv._inkH = h;
+  return box;
+}
 
-  // corner crop marks, offset so they never touch the artwork
-  var g = Math.round(0.30 * perCm), len = Math.round(0.75 * perCm);
-  [[mL, mT, -1, -1], [mL + iw, mT, 1, -1], [mL, mT + ih, -1, 1], [mL + iw, mT + ih, 1, 1]]
-    .forEach(function (p) {
+function stencilPlan(d) {
+  var pg = PAPERS[STEN.paper] || PAPERS.a4;
+  var pageW = pg[0], pageH = pg[1];
+  var availW = pageW - MARGIN * 2, availH = pageH - MARGIN * 2;
+  var ib = canvasInk(d.canvas);
+  var fullW = d.sizeCm * d.aspect * 10, fullH = d.sizeCm * 10;
+  // only the inked part goes on paper, at the size it sits on the body
+  var wMm = fullW * ib[2] / d.canvas.width, hMm = fullH * ib[3] / d.canvas.height;
+  /* Each design keeps its own settings: one piece may want turning and a
+     wide lap while the next does not, and changing one should not quietly
+     re-lay the others. */
+  var orient = d.stOrient || STEN_DEFAULTS.orient;
+  var lap = d.stLap || STEN_DEFAULTS.overlap;
+
+  function shape(rot) {
+    var pw = rot ? hMm : wMm, ph = rot ? wMm : hMm;
+    return { rot: rot,
+             cols: Math.max(1, Math.ceil((pw - lap) / (availW - lap))),
+             rows: Math.max(1, Math.ceil((ph - lap) / (availH - lap))) };
+  }
+  var P;
+  if (orient === 'up') P = shape(false);
+  else if (orient === 'side') P = shape(true);
+  else {
+    var a = shape(false), b = shape(true);
+    P = (b.cols * b.rows < a.cols * a.rows) ? b : a;
+  }
+  P.pageW = pageW; P.pageH = pageH;
+  P.availW = availW; P.availH = availH;
+  P.wMm = wMm; P.hMm = hMm; P.lap = lap;
+  P.ink = ib; P.fullW = fullW; P.fullH = fullH;
+  P.pw = P.rot ? hMm : wMm; P.ph = P.rot ? wMm : hMm;
+
+  // how much room the artwork has to slide inside the sheets it spans
+  P.slackX = Math.max(0, P.cols * availW - (P.cols - 1) * lap - P.pw);
+  P.slackY = Math.max(0, P.rows * availH - (P.rows - 1) * lap - P.ph);
+  var off = d.stOff || [P.slackX / 2, P.slackY / 2];
+  P.offX = Math.max(0, Math.min(P.slackX, off[0]));
+  P.offY = Math.max(0, Math.min(P.slackY, off[1]));
+  return P;
+}
+
+function stencilPages(d) {
+  var P = stencilPlan(d);
+  var pxW = Math.round(P.pageW * MMPX), pxH = Math.round(P.pageH * MMPX);
+  var pages = [], k = 0, n = P.cols * P.rows;
+
+  for (var r = 0; r < P.rows; r++) {
+    for (var c = 0; c < P.cols; c++) {
+      if (!tileHasInk(d, P, c, r)) continue;      // nothing here to print
+      k++;
+      var cv = document.createElement('canvas');
+      cv.width = pxW; cv.height = pxH;
+      var x = cv.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, pxW, pxH);
+
+      var ox = c * (P.availW - P.lap) - P.offX, oy = r * (P.availH - P.lap) - P.offY;
+      x.save();
       x.beginPath();
-      x.moveTo(p[0] + p[2] * g, p[1]); x.lineTo(p[0] + p[2] * (g + len), p[1]);
-      x.moveTo(p[0], p[1] + p[3] * g); x.lineTo(p[0], p[1] + p[3] * (g + len));
-      x.stroke();
+      x.rect(MARGIN * MMPX, MARGIN * MMPX, P.availW * MMPX, P.availH * MMPX);
+      x.clip();
+      x.translate((MARGIN - ox) * MMPX, (MARGIN - oy) * MMPX);
+      // turning the artwork puts its far edge at the origin, so it is the
+      // width of the turned piece that has to be given back, not its height
+      if (P.rot) { x.translate(P.pw * MMPX, 0); x.rotate(Math.PI / 2); }
+      x.drawImage(d.canvas, P.ink[0], P.ink[1], P.ink[2], P.ink[3],
+                  0, 0, P.wMm * MMPX, P.hMm * MMPX);
+      x.restore();
+
+      pages.push(cv);
+    }
+  }
+  return pages;
+}
+
+/* A coarse map of where the ink actually is, so a tile can be judged empty
+   before a 2480 x 3508 page is ever drawn for it. Rendering a sheet and then
+   reading it back to find out it was blank is the expensive way round. */
+var GRID = 96;
+function inkGrid(d) {
+  if (d.grid) return d.grid;
+  var g = new Uint8Array(GRID * GRID);
+  var cv = d.canvas;
+  if (!cv) return g;
+  try {
+    var w = Math.max(1, Math.min(GRID * 3, cv.width));
+    var h = Math.max(1, Math.min(GRID * 3, cv.height));
+    var t = document.createElement('canvas');
+    t.width = w; t.height = h;
+    var tx = t.getContext('2d');
+    tx.drawImage(cv, 0, 0, w, h);
+    var px = tx.getImageData(0, 0, w, h).data;
+    for (var y = 0; y < h; y++) {
+      var gy = (y * GRID / h) | 0;
+      for (var i = 0; i < w; i++) {
+        var o = (y * w + i) * 4;
+        if (px[o + 3] > 40 && px[o] < 210) g[gy * GRID + ((i * GRID / w) | 0)] = 1;
+      }
+    }
+  } catch (_) { g.fill(1); }
+  d.grid = g;
+  return g;
+}
+
+/* Does this sheet of the grid catch any ink? Regions are in artwork
+   millimetres, measured in the artwork's own upright frame. */
+function tileHasInk(d, P, c, r) {
+  var g = inkGrid(d);
+  var x0 = c * (P.availW - P.lap) - P.offX, y0 = r * (P.availH - P.lap) - P.offY;
+  var x1 = x0 + P.availW, y1 = y0 + P.availH;
+  // undo the turn, so the window is expressed against the upright artwork
+  var a0, a1, b0, b1;
+  if (P.rot) { a0 = y0; a1 = y1; b0 = P.pw - x1; b1 = P.pw - x0; }
+  else { a0 = x0; a1 = x1; b0 = y0; b1 = y1; }
+  var cx0 = Math.max(0, Math.floor(a0 / P.wMm * GRID));
+  var cx1 = Math.min(GRID - 1, Math.ceil(a1 / P.wMm * GRID));
+  var cy0 = Math.max(0, Math.floor(b0 / P.hMm * GRID));
+  var cy1 = Math.min(GRID - 1, Math.ceil(b1 / P.hMm * GRID));
+  for (var y = cy0; y <= cy1; y++) {
+    for (var x = cx0; x <= cx1; x++) if (g[y * GRID + x]) return true;
+  }
+  return false;
+}
+
+var sheetCache = {};
+function stencilSheetCount(d) {
+  var P = stencilPlan(d);
+  var key = d.id + '|' + P.cols + 'x' + P.rows + '|' + Math.round(P.offX) + ',' +
+            Math.round(P.offY) + '|' + P.rot + '|' + P.lap + '|' + d.sizeCm.toFixed(2);
+  if (sheetCache[key] === undefined) sheetCache[key] = stencilPages(d).length;
+  return sheetCache[key];
+}
+
+function stencilPDF(list) {
+  var pages = [];
+  list.forEach(function (d) {
+    var P = stencilPlan(d);
+    stencilPages(d).forEach(function (cv) {
+      pages.push({ img: PDFOut.packBitonal(cv), x: 0, y: 0, w: P.pageW, h: P.pageH });
     });
-
-  // centre marks on each edge, for lining the stencil up on the body
-  var cxm = mL + iw / 2, cym = mT + ih / 2, t = Math.round(0.55 * perCm);
-  x.beginPath();
-  x.moveTo(cxm, mT - g); x.lineTo(cxm, mT - g - t);
-  x.moveTo(cxm, mT + ih + g); x.lineTo(cxm, mT + ih + g + t);
-  x.moveTo(mL - g, cym); x.lineTo(mL - g - t, cym);
-  x.moveTo(mL + iw + g, cym); x.lineTo(mL + iw + g + t, cym);
-  x.stroke();
-
-  // centimetre rule along the foot
-  var ry = mT + ih + Math.round(1.5 * perCm);
-  x.beginPath(); x.moveTo(mL, ry); x.lineTo(mL + Math.floor(wCm) * perCm, ry); x.stroke();
-  x.font = msFont(perCm * 0.26);
-  x.textAlign = 'center'; x.textBaseline = 'top';
-  for (var i = 0; i <= Math.floor(wCm); i++) {
-    var tx = mL + i * perCm, big = i % 5 === 0;
-    x.beginPath();
-    x.moveTo(tx, ry); x.lineTo(tx, ry - Math.round(perCm * (big ? 0.34 : 0.18)));
-    x.stroke();
-    if (big) x.fillText(String(i), tx, ry + Math.round(perCm * 0.10));
-  }
-
-  // inch rule up the right-hand edge
-  var rx = mL + iw + Math.round(1.3 * perCm);
-  x.beginPath(); x.moveTo(rx, mT); x.lineTo(rx, mT + Math.floor(hCm / 2.54) * perIn); x.stroke();
-  x.textAlign = 'left'; x.textBaseline = 'middle';
-  for (var j = 0; j <= Math.floor(hCm / 2.54) * 2; j++) {
-    var ty = mT + j * perIn / 2, half = j % 2 === 1;
-    x.beginPath();
-    x.moveTo(rx, ty); x.lineTo(rx + Math.round(perCm * (half ? 0.18 : 0.34)), ty);
-    x.stroke();
-    if (!half) x.fillText(String(j / 2) + '"', rx + Math.round(perCm * 0.44), ty);
-  }
-
-  // the specification block
-  var by = mT + ih + Math.round(2.5 * perCm), lh = Math.round(perCm * 0.46);
-  x.textAlign = 'left'; x.textBaseline = 'top';
-  x.fillStyle = '#111111';
-  x.font = msFont(perCm * 0.34, true);
-  x.fillText(d.name, mL, by);
-  x.font = msFont(perCm * 0.26);
-  x.fillText(wCm.toFixed(1) + ' \u00d7 ' + hCm.toFixed(1) + ' cm      ' +
-             (wCm / 2.54).toFixed(2) + ' \u00d7 ' + (hCm / 2.54).toFixed(2) + ' in',
-             mL, by + lh);
-  x.fillText('300 dpi \u00b7 print at 100% \u00b7 do not scale or fit to page', mL, by + lh * 2);
-  x.fillText('check the rule below reads 5 cm before transferring \u00b7 ' +
-             new Date().toLocaleDateString(), mL, by + lh * 3);
-  x.textBaseline = 'alphabetic';
-  return c;
+  });
+  return PDFOut.build(pages);
 }
 
 function safeName(n) {
   return n.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'design';
 }
 
-function saveStencil() {
-  if (!sel) { status('Select a design first.'); return; }
-  download(outName('stencil-' + safeName(sel.name), 'png'), stencilCanvas(sel).toDataURL('image/png'));
-  status('Stencil saved at true size. Print at 100%, no scaling.');
+function stencilList() {
+  var all = decals.filter(function (d) { return d.canvas; });
+  return all.length ? all : [];
+}
+function stencilCurrent() {
+  var l = stencilList();
+  if (!l.length) return null;
+  if (STEN.tab >= l.length) STEN.tab = l.length - 1;
+  return l[STEN.tab];
 }
 
-/* A minimal zip writer, stored rather than deflated. PNG bytes are already
-   compressed, so storing them costs nothing and keeps this to a few dozen
-   lines instead of pulling in a library. */
-var CRC_TABLE = (function () {
-  var t = new Uint32Array(256);
-  for (var n = 0; n < 256; n++) {
-    var c = n;
-    for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    t[n] = c >>> 0;
+function openStencil() {
+  var l = stencilList();
+  if (!l.length) { status('Add a design first.'); return; }
+  STEN.tab = Math.max(0, l.indexOf(sel));
+  $('sdlg').classList.add('on');
+  $('sName').value = (docName ? safeName(docName) + '-' : '') + 'stencil';
+  stencilTabs();
+  syncStenButtons();
+  drawStencilPreview();
+}
+function closeStencil() { $('sdlg').classList.remove('on'); }
+$('sX').onclick = $('sCancel').onclick = closeStencil;
+$('sdlg').onclick = function (e) { if (e.target === $('sdlg')) closeStencil(); };
+
+function stencilTabs() {
+  var host = $('sTabs'), l = stencilList();
+  host.innerHTML = '';
+  l.forEach(function (d, i) {
+    var b = document.createElement('button');
+    b.className = 'tbtn' + (i === STEN.tab ? ' on' : '');
+    b.textContent = d.name;
+    b.onclick = function () { STEN.tab = i; stencilTabs(); syncStenButtons(); drawStencilPreview(); };
+    host.appendChild(b);
+  });
+  host.style.display = l.length > 1 ? '' : 'none';
+  // one design needs no "all"
+  $('sAll').style.display = l.length > 1 ? '' : 'none';
+}
+
+/* The preview is the point of the dialog: it shows the sheets and where the
+   cuts land, and the artwork can be dragged so a seam misses anything that
+   matters. */
+var sDrag = null;
+function stencilGeom() {
+  var d = stencilCurrent();
+  if (!d) return null;
+  var P = stencilPlan(d), gap = 4;
+  var totW = P.cols * P.pageW + (P.cols - 1) * gap;
+  var totH = P.rows * P.pageH + (P.rows - 1) * gap;
+  var k = Math.min(322 / totW, 332 / totH);
+  return { d: d, P: P, gap: gap, k: k, w: totW * k, h: totH * k };
+}
+
+function drawStencilPreview() {
+  var box = $('sPrev'), info = $('sInfo'), g = stencilGeom();
+  if (!g) { box.width = 10; box.height = 10; info.textContent = 'No designs.'; return; }
+  var d = g.d, P = g.P, k = g.k;
+  box.width = Math.round(g.w); box.height = Math.round(g.h);
+  var x = box.getContext('2d');
+  x.fillStyle = '#8a8a8a'; x.fillRect(0, 0, box.width, box.height);
+
+  for (var r = 0; r < P.rows; r++) {
+    for (var c = 0; c < P.cols; c++) {
+      var px = c * (P.pageW + g.gap) * k, py = r * (P.pageH + g.gap) * k;
+      x.fillStyle = '#ffffff';
+      x.fillRect(px, py, P.pageW * k, P.pageH * k);
+      x.strokeStyle = '#000000'; x.lineWidth = 1;
+      x.strokeRect(px + 0.5, py + 0.5, P.pageW * k - 1, P.pageH * k - 1);
+      x.strokeStyle = '#d0d0d0';
+      x.strokeRect(px + MARGIN * k, py + MARGIN * k, P.availW * k, P.availH * k);
+
+      var ox = c * (P.availW - P.lap) - P.offX, oy = r * (P.availH - P.lap) - P.offY;
+      x.save();
+      x.beginPath();
+      x.rect(px + MARGIN * k, py + MARGIN * k, P.availW * k, P.availH * k);
+      x.clip();
+      x.translate(px + (MARGIN - ox) * k, py + (MARGIN - oy) * k);
+      if (P.rot) { x.translate(P.pw * k, 0); x.rotate(Math.PI / 2); }
+      x.drawImage(d.canvas, P.ink[0], P.ink[1], P.ink[2], P.ink[3],
+                  0, 0, P.wMm * k, P.hMm * k);
+      x.restore();
+    }
   }
-  return t;
-})();
-function crc32(buf) {
-  var c = 0xFFFFFFFF;
-  for (var i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
-function bytesFromDataURL(url) {
-  var bin = atob(url.split(',')[1]), out = new Uint8Array(bin.length);
-  for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-function makeZip(files) {
-  var parts = [], central = [], offset = 0, enc = new TextEncoder();
-  files.forEach(function (f) {
-    var name = enc.encode(f.name), crc = crc32(f.data), n = f.data.length;
-    var lh = new DataView(new ArrayBuffer(30));
-    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true);
-    lh.setUint32(14, crc, true); lh.setUint32(18, n, true); lh.setUint32(22, n, true);
-    lh.setUint16(26, name.length, true);
-    parts.push(new Uint8Array(lh.buffer), name, f.data);
-
-    var cd = new DataView(new ArrayBuffer(46));
-    cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
-    cd.setUint32(16, crc, true); cd.setUint32(20, n, true); cd.setUint32(24, n, true);
-    cd.setUint16(28, name.length, true); cd.setUint32(42, offset, true);
-    central.push(new Uint8Array(cd.buffer), name);
-    offset += 30 + name.length + n;
-  });
-  var cSize = central.reduce(function (a, b) { return a + b.length; }, 0);
-  var eo = new DataView(new ArrayBuffer(22));
-  eo.setUint32(0, 0x06054b50, true);
-  eo.setUint16(8, files.length, true); eo.setUint16(10, files.length, true);
-  eo.setUint32(12, cSize, true); eo.setUint32(16, offset, true);
-  return new Blob(parts.concat(central, [new Uint8Array(eo.buffer)]), { type: 'application/zip' });
+  var n = P.cols * P.rows;
+  var live = stencilSheetCount(d);
+  info.textContent = (P.wMm / 10).toFixed(1) + ' \u00d7 ' + (P.hMm / 10).toFixed(1) + ' cm  \u00b7  ' +
+    live + (live === 1 ? ' sheet' : ' sheets') + ' of A4' +
+    (live < n ? ' (' + (n - live) + ' blank dropped)' : '') +
+    (P.rot ? ', sideways' : '') +
+    (P.slackX > 1 || P.slackY > 1 ? '  \u00b7  drag to reposition' : '');
 }
 
-function saveAllStencils() {
-  var have = decals.filter(function (d) { return d.canvas; });
-  if (!have.length) { status('No designs to save.'); return; }
-  var used = {};
-  var files = have.map(function (d) {
-    var base = safeName(d.name);
-    used[base] = (used[base] || 0) + 1;
-    if (used[base] > 1) base += '-' + used[base];
-    return { name: base + '.png', data: bytesFromDataURL(stencilCanvas(d).toDataURL('image/png')) };
-  });
-  var url = URL.createObjectURL(makeZip(files));
-  download(outName('stencils', 'zip'), url);
-  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-  status(files.length + ' stencils saved to stencils.zip.');
+$('sPrev').addEventListener('pointerdown', function (e) {
+  var g = stencilGeom();
+  if (!g || (g.P.slackX < 1 && g.P.slackY < 1)) return;
+  $('sPrev').setPointerCapture(e.pointerId);
+  sDrag = { x: e.clientX, y: e.clientY, ox: g.P.offX, oy: g.P.offY, k: g.k };
+});
+$('sPrev').addEventListener('pointermove', function (e) {
+  if (!sDrag) return;
+  var d = stencilCurrent();
+  if (!d) return;
+  d.stOff = [sDrag.ox + (e.clientX - sDrag.x) / sDrag.k,
+             sDrag.oy + (e.clientY - sDrag.y) / sDrag.k];
+  drawStencilPreview();
+});
+$('sPrev').addEventListener('pointerup', function () { sDrag = null; });
+$('sPrev').addEventListener('pointercancel', function () { sDrag = null; });
+
+function stenGroup(attr, key, cast) {
+  var bs = document.querySelectorAll('[' + attr + ']');
+  for (var i = 0; i < bs.length; i++) {
+    (function (b) {
+      b.onclick = function () {
+        var d = stencilCurrent();
+        if (!d) return;
+        d[key] = cast ? cast(b.getAttribute(attr)) : b.getAttribute(attr);
+        syncStenButtons();
+        drawStencilPreview();
+      };
+    })(bs[i]);
+  }
 }
+stenGroup('data-so', 'stOrient');
+stenGroup('data-sv', 'stLap', Number);
+
+/* Show the buttons for whichever design is in front. */
+function syncStenButtons() {
+  var d = stencilCurrent();
+  var orient = (d && d.stOrient) || STEN_DEFAULTS.orient;
+  var lap = (d && d.stLap) || STEN_DEFAULTS.overlap;
+  var bs = document.querySelectorAll('[data-so]'), i;
+  for (i = 0; i < bs.length; i++) bs[i].classList.toggle('on', bs[i].getAttribute('data-so') === orient);
+  bs = document.querySelectorAll('[data-sv]');
+  for (i = 0; i < bs.length; i++) bs[i].classList.toggle('on', Number(bs[i].getAttribute('data-sv')) === lap);
+}
+
+function saveStencils(list) {
+  if (!list.length) { status('No design to save.'); return; }
+  var raw = ($('sName').value || '').trim().replace(/\.pdf$/i, '') || 'stencil';
+  closeStencil();
+  var sheets = 0;
+  list.forEach(function (d) { sheets += stencilSheetCount(d); });
+  downloadBytes(safeName(raw) + '.pdf', stencilPDF(list), 'application/pdf');
+  status('Saved ' + sheets + (sheets === 1 ? ' sheet' : ' sheets') + ' \u2014 print at 100%, actual size.');
+}
+$('sOne').onclick = function () { var d = stencilCurrent(); saveStencils(d ? [d] : []); };
+$('sAll').onclick = function () { saveStencils(stencilList()); };
+
+$('sName').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') { e.preventDefault(); $('sOne').onclick(); }
+  if (e.key === 'Escape') { e.preventDefault(); closeStencil(); }
+});
+
 
 function saveLayoutAs() {
   askName('Save Layout As', 'File name:', docName || 'untitled', function (v) {
@@ -3131,6 +3777,10 @@ document.querySelectorAll('[data-a]').forEach(function (b) {
   b.onclick = function () { act(b.dataset.a); };
 });
 $('wX').onclick = function () { status('Close the tab when you are done.'); };
+/* A build that has not been cut for a particular artist should not announce
+   the fact; the packer fills the name in and the line appears with it. */
+if ($('licName').textContent === 'unlicensed build') $('licRow').style.display = 'none';
+
 $('aX').onclick = $('aOk').onclick = function () { $('about').classList.remove('on'); };
 $('prevX').onclick = function () { previewOn = false; drawPreview(); };
 
@@ -3287,7 +3937,6 @@ addEventListener('keydown', function (e) {
     return;
   }
   if (k === 'delete' || k === 'backspace') { e.preventDefault(); act('del'); }
-  else if (k === 'm') act('mirror');
   else if (k === 'f') act('flip');
   else if (k === '1') act('v-front');
   else if (k === '2') act('v-back');
