@@ -2,290 +2,1103 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>katakata</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg:  #f5f5f0;
-      --ink: #111111;
-      --page-gutter: 2.5rem;
-      --bleed-gutter: 1rem;
+      --desk:  #e6e6e0;
+      --paper: #f5f5f0;
+      --ink:   #111111;
+      --lite:  #f5f5f0;
+      --rule:  color-mix(in srgb, var(--ink) 18%, transparent);
+      --edge:  color-mix(in srgb, var(--ink) 24%, transparent);
+      --rim:   color-mix(in srgb, var(--ink) 22%, var(--desk));
+      --gut:   rgba(0, 0, 0, .08);
+      --ease:  cubic-bezier(.22, .7, .2, 1);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg:  #0f0f0d;
-        --ink: #d4d0c8;
+        --desk:  #070706;
+        --paper: #0f0f0d;
+        --ink:   #d4d0c8;
+        --lite:  #d4d0c8;
+        --gut:   rgba(0, 0, 0, .55);
+        --edge:  color-mix(in srgb, var(--ink) 12%, transparent);
+        --rim:   color-mix(in srgb, var(--ink) 14%, var(--desk));
       }
     }
 
-    html {
-      background: var(--bg);
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--desk);
       color: var(--ink);
       font-family: 'IBM Plex Mono', 'Courier New', monospace;
-      font-size: 14px;
-      line-height: 1.7;
+      font-size: 13px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
     }
 
-    body {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 0 var(--page-gutter);
-      overflow-x: hidden;
-    }
+    button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; text-align: inherit; }
+    a { color: inherit; text-decoration: none; }
+    button:focus-visible, a:focus-visible { outline: 1px solid currentColor; outline-offset: 3px; }
 
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
+    /* ── DESK ── */
 
-    a:hover {
-      text-decoration: underline;
-    }
-
-    /* ── HEADER ── */
-
-    .top {
-      width: 100vw;
-      margin-left: calc(50% - 50vw);
-      padding-top: 4rem;
-      padding-bottom: 2.5rem;
-    }
-
-    .site-name {
-      font-size: 8rem;
-      line-height: 1;
+    .deskmark {
+      position: fixed;
+      left: 0; right: 0; top: 50%;
+      transform: translateY(-50%) scaleY(2.3);
+      text-align: center;
+      font-size: 20.6vw;
+      line-height: .8;
       white-space: nowrap;
-      display: block;
-      width: max-content;
-      transform-origin: left top;
+      opacity: .05;
+      pointer-events: none;
+      transition: opacity .7s ease;
     }
 
-    .bar {
+    body.reading .deskmark { opacity: 0; }
+
+    #stage {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      opacity: 0;
+      transition: opacity .6s ease;
+    }
+
+    body.ready #stage { opacity: 1; }
+
+    #zoom { position: absolute; inset: 0; transform-origin: 0 0; }
+
+    /* ── BOOKS ── */
+
+    .bk {
+      position: absolute;
+      transform-origin: 50% 50%;
+      pointer-events: none;
+      transition: transform .75s var(--ease), opacity .55s ease;
+    }
+
+    /* small caption under each closed book */
+    .cap {
+      position: absolute;
+      top: calc(100% + 16px);
       display: flex;
-      justify-content: flex-end;
-      align-items: baseline;
-      width: 100vw;
-      margin-left: calc(50% - 50vw);
-      padding: 0.6rem var(--bleed-gutter);
-      border-top: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      border-bottom: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      margin-bottom: 5rem;
+      justify-content: center;
+      gap: .9em;
+      white-space: nowrap;
+      font-size: 12px;
+      opacity: .45;
+      pointer-events: none;
+      transition: opacity .4s ease, transform .5s var(--ease);
     }
 
-    .bar nav {
+    body.spread .cap { left: 25%; width: 50%; }
+    body.single .cap { left: 0; width: 100%; }
+    .cap span { opacity: .55; }
+    .bk:not(.side) .cap { opacity: .9; }
+    .bk.hov .cap { opacity: 1; transform: translateY(-4px); }
+    body.reading .bk .cap { opacity: 0; }
+
+    /* while a book glides, keep it as one cached layer instead of repainting it every frame */
+    .bk.moving { will-change: transform, opacity; }
+
+    .bk .face, .bk .ribbon { pointer-events: auto; }
+    .bk .leaf.flipped .face.front,
+    .bk .leaf:not(.flipped) .face.back,
+    .bk.away .face { pointer-events: none; }
+    .bk.side .face { cursor: pointer; }
+
+    .book {
+      position: absolute;
+      inset: 0;
+      perspective: var(--persp, 2600px);
+      transition: transform .75s var(--ease);
+    }
+
+    body.single .book { perspective-origin: 0 50%; }
+
+    .book::before,
+    .book::after {
+      content: '';
+      position: absolute;
+      top: .5%; bottom: .5%;
+      pointer-events: none;
+      background: repeating-linear-gradient(90deg, var(--edge) 0 1px, transparent 1px 2px);
+    }
+
+    .book::before, .book::after { will-change: transform; }
+    .book::before { right: 100%; width: var(--lw, 0px); }
+    .book::after  { left: 100%;  width: var(--rw, 0px); }
+
+    .ribbon {
+      position: absolute;
+      top: -.8%;
+      width: 3.8%;
+      min-width: 13px;
+      height: 10.5%;
+      transform-origin: 50% 0;
+      clip-path: inset(0 -50% 100% -50%);
+      cursor: pointer;
+      z-index: 3000;
+      touch-action: none;
+    }
+
+    .ribbon svg { position: relative; display: block; width: 100%; height: 100%; overflow: visible; transition: transform .35s var(--ease); transform-origin: 50% 0; }
+    .ribbon polygon { fill: var(--ink); stroke: var(--paper); stroke-width: .8px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+
+    /* the part tucked into the book: folded away until the ribbon is pulled */
+    .rb-fold {
+      position: absolute;
+      left: 0; right: 0;
+      bottom: 100%;
+      height: 62%;
+      transform-origin: 50% 100%;
+      transform: perspective(160px) rotateX(-90deg);
+      clip-path: polygon(0 9%, 100% 0, 100% 100%, 0 100%);
+      background:
+        linear-gradient(to top, rgba(0, 0, 0, .38), transparent 34%),
+        repeating-linear-gradient(-45deg, transparent 0 2px, color-mix(in srgb, var(--paper) 9%, transparent) 2px 3px),
+        color-mix(in srgb, var(--ink) 80%, var(--paper));
+      box-shadow: inset 0 0 0 .8px var(--paper);
+      pointer-events: none;
+    }
+
+    .rb-fold::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: color-mix(in srgb, var(--paper) 55%, transparent); }
+
+    /* unfurls down from the top edge of the book */
+    .ribbon.on { clip-path: inset(0 -50% -40% -50%); animation: ribbon-unfurl 1.25s cubic-bezier(.45, .05, .2, 1) both; }
+    .ribbon.on.settled { animation: none; }
+
+    @keyframes ribbon-unfurl {
+      0%   { clip-path: inset(0 -50% 100% -50%); transform: skewX(4deg); }
+      65%  { transform: translateY(2%) skewX(-.8deg); }
+      100% { clip-path: inset(0 -50% -40% -50%); transform: none; }
+    }
+
+    .ribbon.on:hover svg { transform: scale(1.18, 1.22); }
+
+    .ribbon.drag { clip-path: none; animation: none; cursor: grabbing; }
+    .ribbon.drag svg { transform: none; }
+    .ribbon.back { transition: transform .45s cubic-bezier(.22, .9, .3, 1); }
+    .ribbon.back .rb-fold { transition: transform .4s ease; }
+    .ribbon.gone { transition: transform .7s cubic-bezier(.5, 0, .9, .6), opacity .55s ease .1s; opacity: 0; pointer-events: none; }
+
+    .bk.away .ribbon, .ribbon:not(.on) { pointer-events: none; }
+
+    .leaf {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      transform-style: preserve-3d;
+      transform-origin: 0 50%;
+    }
+
+    body.spread .leaf, body.spread .tn { left: 50%; width: 50%; }
+    body.single .leaf, body.single .tn { left: 0;   width: 100%; }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      container-type: size;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      box-shadow: 0 0 0 1px var(--rim);
+    }
+
+    .face.back { transform: rotateY(180deg); }
+
+    .face::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .face.front::after { background: linear-gradient(90deg, var(--gut), transparent 8%); }
+    .face.back::after  { background: linear-gradient(270deg, var(--gut), transparent 8%); }
+    body.single .face.front::after { background: linear-gradient(90deg, var(--gut), transparent 3%); }
+
+    .blankpg { position: absolute; inset: 0; background: color-mix(in srgb, var(--ink) 5%, var(--paper)); }
+
+    /* ── CURL (flat, top-down cylinder roll) ── */
+
+    .tn { position: absolute; top: 0; height: 100%; pointer-events: none; }
+    .tn.mir { transform: scaleX(-1); transform-origin: 0 0; }
+
+    /* each strip of the curl is a moving window (.tw) over a page drawn once (.tp):
+       per frame only transforms change, so nothing is re-rasterised mid-turn */
+    .tw {
+      position: absolute;
+      left: 0; top: 0;
+      overflow: hidden;
+      transform-origin: 0 0;
+      will-change: transform;
+      contain: strict;
+    }
+
+    .tp {
+      position: absolute;
+      left: 0; top: 0;
+      transform-origin: 0 0;
+      container-type: size;
+      overflow: hidden;
+      contain: strict;
+      will-change: transform;
+    }
+
+    .tp::after { content: ''; position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+    .tp.r::after { background: linear-gradient(90deg, var(--gut), transparent 8%); }
+    .tp.v::after { background: linear-gradient(270deg, var(--gut), transparent 8%); }
+    body.single .tp.r::after { background: linear-gradient(90deg, var(--gut), transparent 3%); }
+
+    .tcbox { position: absolute; inset: 0; overflow: hidden; }
+
+    .tsh {
+      position: absolute;
+      left: 0; top: 0;
+      width: 100px;
+      transform-origin: 0 0;
+      z-index: 6;
+      pointer-events: none;
+      will-change: transform;
+    }
+
+    /* x runs from where the roll meets the flat page (0) to its outer rim (100px) */
+    .tsh.under { background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.14) 55%, rgba(0,0,0,.34)); }
+    .tsh.over  { background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(255,255,255,.2) 28%, rgba(255,255,255,.06) 52%, rgba(0,0,0,.1) 78%, rgba(0,0,0,.3) 100%); }
+
+    .tcast {
+      position: absolute;
+      left: 0; top: 0;
+      transform-origin: 0 0;
+      will-change: transform, opacity;
+      background: linear-gradient(90deg, rgba(0, 0, 0, .3), rgba(0, 0, 0, .08) 40%, transparent);
+    }
+
+    /* ═════════════ PAGE SYSTEM (page units) ═════════════ */
+
+    .pg {
+      --fg: var(--ink);
+      --bg: var(--paper);
+      --hair: color-mix(in srgb, var(--fg) 22%, transparent);
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
       display: flex;
-      gap: 2rem;
+      flex-direction: column;
+      padding: 7cqw 7cqw 6cqw;
+      font-size: 2.35cqw;
+      line-height: 1.55;
+      background: var(--bg);
+      color: var(--fg);
     }
 
-    .bar nav a {
-      opacity: 0.55;
-    }
+    .pg.inv { --fg: var(--paper); --bg: var(--ink); }
 
-    .bar nav a:hover {
-      opacity: 1;
-      text-decoration: none;
-    }
+    .pg > * { position: relative; z-index: 1; }
+    .deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+    .pg > .deco { position: absolute; z-index: 0; }
 
-    /* ── TWO COLUMNS ── */
+    .pg h1, .pg h2, .pg h3 { font-weight: 400; }
+    .pg a:hover { text-decoration: underline; }
 
-    .columns {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: start;
-    }
-
-    /* ── LEFT: ISSUES ── */
-
-    .col-issues {}
-
-    .issue-header {
-      margin-bottom: 2rem;
-    }
-
-    .issue-art {
-      margin: 0 0 1.2rem;
-      opacity: 0.68;
-      font-size: 0.58rem;
-      line-height: 1.05;
-      white-space: pre;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-
-    .issue-art::-webkit-scrollbar {
-      display: none;
-    }
-
-    .issue-label,
-    .section-label {
-      opacity: 0.45;
-      letter-spacing: 0.08em;
-      text-transform: lowercase;
-      font-size: inherit;
-    }
-
-    .section-label {
-      margin-bottom: 2rem;
-    }
-
-    .piece {
-      padding: 1.2rem 0 1.4rem;
-      border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
-    }
-
-    .piece-meta {
+    .rh {
       display: flex;
       justify-content: space-between;
-      gap: 1rem;
-      opacity: 0.45;
-      margin-bottom: 0.55rem;
-      font-size: inherit;
+      gap: 3cqw;
+      flex: none;
+      font-size: 2.1cqw;
+      padding-bottom: 1.4cqw;
+      border-bottom: 1px solid var(--hair);
     }
 
-    .piece-title {
-      font-size: inherit;
-      font-weight: 400;
-      line-height: 1.7;
-      margin-bottom: 0.7rem;
+    .rh span, .lbl { opacity: .55; }
+    .rh span:last-child { text-align: right; }
+
+    .fill { flex: 1 1 auto; min-height: 2cqw; }
+
+    .folio {
+      display: flex;
+      justify-content: space-between;
+      flex: none;
+      font-size: 2.1cqw;
+      margin-top: 3cqw;
+      padding-top: 1.4cqw;
+      border-top: 1px solid var(--hair);
     }
 
-    .read-more {
+    .folio span { opacity: .55; }
+
+    .st {
+      --sx: 1.4;
+      display: block;
+      white-space: nowrap;
+      font-size: calc(86cqw / (var(--len) * .6 * var(--sx)));
+      line-height: .8;
+      transform: scaleX(var(--sx));
+      transform-origin: 0 0;
+    }
+
+    .h {
+      font-size: 6.4cqw;
+      line-height: 1.05;
+      letter-spacing: -.01em;
+      margin-top: 5cqw;
+    }
+
+    .flow { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+    .flow p { text-indent: 2.4em; }
+    .flow p.cont, .flow p.lede { text-indent: 0; }
+    .flow p.lede { font-size: 1.34em; line-height: 1.38; margin-bottom: .75em; }
+
+    .end {
       display: inline-block;
-      opacity: 0.6;
+      width: .62em; height: .62em;
+      margin-left: .7em;
+      background: currentColor;
     }
 
-    .read-more:hover {
-      opacity: 1;
-      text-decoration: underline;
+    /* contents */
+    .tis { border-top: 1px solid var(--fg); }
+
+    .ti {
+      display: grid;
+      grid-template-columns: 16cqw 1fr;
+      gap: 2cqw;
+      align-items: baseline;
+      padding: 2cqw 0 2.4cqw;
+      border-bottom: 1px solid var(--hair);
     }
 
-    /* ── RIGHT: ABOUT + SUBMIT ── */
+    .ti .pn { font-size: 9cqw; line-height: .8; }
+    .ti .tt { font-size: 3.6cqw; line-height: 1.2; }
+    .ti small { display: block; font-size: 2.1cqw; opacity: .55; margin-top: 1.2cqw; }
+    .pg a.ti:hover { text-decoration: none; }
+    .pg a.ti:hover .tt { text-decoration: underline; }
 
-    .col-info {
-      border-left: 1px solid var(--ink);
-      border-color: color-mix(in srgb, var(--ink) 15%, transparent);
-      padding-left: 3rem;
+    .tss { margin-top: 3cqw; }
+
+    .ts {
+      display: flex;
+      justify-content: space-between;
+      padding: .9cqw 0;
+      border-bottom: 1px solid var(--hair);
+      font-size: 2.2cqw;
     }
 
-    .section {
-      padding-bottom: 3rem;
+    .pg a.ts:hover { text-decoration: none; }
+    .pg a.ts:hover span:first-child { text-decoration: underline; }
+    .ts span:last-child { opacity: .55; }
+
+    /* note */
+    .note .flow { margin-top: 5cqw; }
+    .note .sig { margin-top: 2cqw; font-size: 2.1cqw; }
+
+    /* opener byline */
+    .by {
+      display: flex;
+      gap: 3cqw;
+      flex: none;
+      margin-top: 4cqw;
+      padding-top: 1.6cqw;
+      border-top: 1px solid var(--fg);
+      font-size: 2.3cqw;
     }
 
-    .section-body p {
-      margin-bottom: 1em;
-      opacity: 0.9;
-      max-width: 34ch;
+    .by span:last-child { margin-left: auto; }
+
+    /* poems */
+    .pm h3 { font-size: 2.1cqw; opacity: .55; margin-bottom: 3.5cqw; }
+    .pm .gap { height: 1.1em; }
+    .pm .l { padding-right: 2cqw; text-indent: -3cqw; margin-left: 3cqw; }
+    .pnum { font-size: 34cqw; line-height: .78; letter-spacing: -.04em; flex: none; }
+
+    /* contributors, donors, colophon */
+    .ct { border-top: 1px solid var(--fg); padding: 1.6cqw 0 3.4cqw; }
+    .ct-n { display: flex; justify-content: space-between; font-size: 3.4cqw; line-height: 1.2; margin-bottom: 1.4cqw; }
+    .ct-n .lbl { font-size: 2.1cqw; }
+    .ct p { max-width: 64cqw; }
+
+    .dn-note { margin-top: 3cqw; max-width: 58cqw; opacity: .7; }
+
+    .dn {
+      display: grid;
+      grid-template-columns: 15cqw 1fr;
+      gap: 2cqw;
+      border-top: 1px solid var(--fg);
+      padding: 1.4cqw 0 2.8cqw;
     }
 
-    .section-body p:last-child {
-      margin-bottom: 0;
+    .dn-t { font-size: 2.1cqw; padding-top: .3cqw; }
+    .dn-l { display: grid; gap: .1cqw 3cqw; }
+    .dn-l.l1 { font-size: 3.6cqw; line-height: 1.3; }
+    .dn-l.l2 { grid-template-columns: 1fr 1fr; }
+    .dn-l.l3 { grid-template-columns: 1fr 1fr 1fr; font-size: 1.95cqw; }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 16cqw 1fr;
+      gap: .4cqw 2cqw;
+      margin-top: 5cqw;
+      padding-top: 1.6cqw;
+      border-top: 1px solid var(--fg);
     }
 
-    .submit-section {
-      padding-top: 1.5rem;
-      border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
-    }
+    .meta dt { opacity: .55; }
 
-    .submit-email {
-      margin-top: 2rem;
-    }
+    .note-s { margin-top: 1.4cqw; max-width: 46ch; }
 
-    .submit-email a {
+    .btn {
       display: inline-flex;
+      align-self: flex-start;
+      gap: 3cqw;
+      margin-top: 3.5cqw;
+      padding: 1cqw 1.8cqw;
+      border: 1px solid var(--hair);
+    }
+
+    .pg a.btn:hover { text-decoration: none; background: color-mix(in srgb, var(--fg) 8%, transparent); }
+
+    .bc { margin-bottom: 4cqw; font-size: 2.4cqw; }
+
+    .bc-foot {
+      display: flex;
+      justify-content: space-between;
+      flex: none;
+      margin-top: 5cqw;
+      padding-top: 1.4cqw;
+      border-top: 1px solid var(--hair);
+      font-size: 2.1cqw;
+    }
+
+    /* ═════════════ ISSUE 01 — AFTER RAIN ═════════════ */
+
+    /* rain and rings are drawn once into images (see paintPatterns) — far cheaper to paint than masked gradients */
+    .rain {
+      background-image: var(--rain-ink);
+      background-size: 4.42cqw 11.7cqw;
+      opacity: .17;
+    }
+
+    .rain.b { display: none; }
+    .rain.dense { opacity: .34; }
+
+    .pg > .rain.top { bottom: 46%; }
+    .t-rain .pmp > .rain.top { top: auto; bottom: 0; height: 52cqw; }
+
+    .t-rain .cover .rc-mid {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 17cqw 1fr;
+      gap: 3cqw;
+      margin-top: 4cqw;
+    }
+
+    .t-rain .vt {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      font-size: 15cqw;
+      line-height: 1;
+      white-space: nowrap;
+      letter-spacing: -.02em;
+    }
+
+    .t-rain .art {
+      align-self: end;
+      justify-self: end;
+      font-family: inherit;
+      font-size: 2.35cqw;
+      line-height: 1.05;
+      white-space: pre;
+    }
+
+    .rc-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex: none;
+      margin-top: 3cqw;
+      padding-top: 2cqw;
+      border-top: 1px solid var(--fg);
+    }
+
+    .rc-foot .big { font-size: 18cqw; line-height: .78; letter-spacing: -.03em; }
+    .rc-foot > span:last-child { text-align: right; }
+
+    .t-rain .stack {
+      display: flex;
+      flex-direction: column;
+      font-size: 10.5cqw;
+      line-height: 1;
+      letter-spacing: -.02em;
+    }
+
+    .t-rain .stack span:nth-child(2) { padding-left: 9cqw; }
+    .t-rain .stack span:nth-child(3) { padding-left: 18cqw; }
+    .t-rain .stack span:nth-child(4) { padding-left: 27cqw; }
+
+    .t-rain .tb {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 20cqw 1fr;
+      grid-template-rows: minmax(0, 1fr);
+      gap: 5cqw;
+      margin-top: 4cqw;
+    }
+
+    .t-rain .verso .tb { grid-template-columns: 1fr 20cqw; }
+    .t-rain .verso .mg { order: 2; text-align: right; }
+
+    .t-rain .mg {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      font-size: 2.1cqw;
+      border-top: 1px solid var(--fg);
+      padding-top: 1.2cqw;
+    }
+
+    .t-rain .mg > span { position: relative; background: var(--bg); align-self: flex-start; padding-right: 1cqw; }
+    .t-rain .verso .mg > span { align-self: flex-end; padding: 0 0 0 1cqw; }
+    .t-rain .mg .rain { opacity: .3; }
+
+    .t-rain .pm { margin-top: 7cqw; font-size: 3cqw; line-height: 1.7; background: var(--bg); align-self: flex-start; padding-right: 3cqw; }
+    .t-rain .verso .pnum { text-align: right; }
+
+    .t-rain .note .flow { margin-left: 28cqw; }
+
+    /* ═════════════ ISSUE 02 — BORROWED LIGHT ═════════════ */
+
+    /* text inverts wherever it crosses a solid shape */
+    .t-light .pg.blend { isolation: isolate; }
+    .t-light .pg.blend > :not(.deco) { --fg: var(--lite); color: var(--lite); mix-blend-mode: difference; }
+
+    .rings    { background: var(--rings-tr) 0 0 / 100% 100% no-repeat; }
+    .rings.bl { background-image: var(--rings-bl); }
+    .rings.c  { background-image: var(--rings-c); }
+
+    .glow { background: radial-gradient(ellipse 90% 60% at 0 0, color-mix(in srgb, var(--fg) 20%, transparent), transparent 70%); }
+
+    .lc-t { font-size: 10.5cqw; line-height: .95; letter-spacing: -.02em; }
+
+    .lc-meta {
+      display: flex;
+      justify-content: space-between;
+      margin: 3cqw 0 5cqw;
+      padding-top: 1.5cqw;
+      border-top: 1px solid var(--fg);
+      font-size: 2.2cqw;
+    }
+
+    .t-light .op .stretch { display: flex; flex-direction: column; gap: 1.6cqw; }
+
+    .t-light .tx.recto, .t-light .pmp.recto { padding-right: 19cqw; }
+    .t-light .tx.verso, .t-light .pmp.verso { padding-left: 19cqw; }
+
+    .t-light .pg > .bar { left: auto; right: 0; width: 12cqw; background: var(--fg); }
+    .t-light .verso > .bar { right: auto; left: 0; }
+
+    .bar span {
+      position: absolute;
+      top: 7cqw; left: 50%;
+      transform: translateX(-50%);
+      writing-mode: vertical-rl;
+      white-space: nowrap;
+      font-size: 2.1cqw;
+      color: var(--bg);
+    }
+
+    .t-light .tx .flow { margin-top: 5cqw; font-size: 2.45cqw; }
+
+    .t-light .pmp .st { margin-top: 5cqw; }
+    .t-light .pmp .pm { text-align: right; font-size: 2.9cqw; line-height: 1.6; }
+    .t-light .pmp .pm .l { margin-left: 0; text-indent: 0; padding-right: 0; }
+
+    .t-light .note .flow { margin-right: 20cqw; }
+
+    /* ═════════════ ISSUE 03 — NIGHT MARKET ═════════════ */
+
+    .grid4, .grid6 {
+      display: grid;
+      flex: none;
+      border-left: 1px solid var(--fg);
+      border-top: 1px solid var(--fg);
+      margin-top: 4cqw;
+    }
+
+    .grid4 { grid-template-columns: repeat(4, 1fr); }
+    .grid6 { grid-template-columns: repeat(6, 1fr); }
+
+    .grid4 i, .grid6 i {
+      display: grid;
+      place-items: center;
+      aspect-ratio: 1;
+      font-style: normal;
+      line-height: 1;
+      border-right: 1px solid var(--fg);
+      border-bottom: 1px solid var(--fg);
+    }
+
+    .grid4 i { font-size: 15cqw; }
+    .grid6 i { font-size: 9.5cqw; }
+    .grid4 i.on, .grid6 i.on { background: var(--fg); }
+
+    .stalls {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      flex: none;
+      font-size: 1.9cqw;
+      border-top: 1px solid var(--hair);
+      border-left: 1px solid var(--hair);
+    }
+
+    .stalls span {
+      padding: .6cqw .8cqw 2.6cqw;
+      border-right: 1px solid var(--hair);
+      border-bottom: 1px solid var(--hair);
+    }
+
+    .stalls span.on { background: var(--fg); color: var(--bg); }
+    .stalls.full { grid-template-columns: repeat(6, 1fr); margin-top: 4cqw; }
+    .stalls.full span { padding-bottom: 5.2cqw; }
+    .stalls.ep { margin-top: 0; }
+    .stalls.ep span { padding-bottom: 7.6cqw; }
+
+    .mc-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex: none;
+      margin-top: 3cqw;
+    }
+
+    .mc-foot .big { font-size: 16cqw; line-height: .78; letter-spacing: -.03em; }
+    .mc-foot > span:last-child { text-align: right; }
+
+    .ledger { flex: none; border-top: 1px solid var(--fg); font-size: 2.4cqw; }
+    .ledger div { display: flex; gap: 1.5cqw; align-items: baseline; padding: 1.1cqw 0; }
+    .ledger dt { opacity: .55; }
+    .ledger .lead { flex: 1; border-bottom: 1px dotted var(--hair); transform: translateY(-.3em); }
+
+    .ticket {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      flex: none;
+      border: 1px solid var(--fg);
+      font-size: 2.1cqw;
+    }
+
+    .ticket span {
+      padding: 1cqw 1.6cqw;
+      border-right: 1px solid var(--fg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ticket span:last-child { border-right: 0; }
+    .ticket .on { background: var(--fg); color: var(--bg); }
+
+    .cols {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: minmax(0, 1fr);
+      margin-top: 4cqw;
+    }
+
+    .cols .flow { font-size: 2.15cqw; line-height: 1.5; }
+    .cols .flow:first-child { padding-right: 3cqw; }
+    .cols .flow:last-child  { padding-left: 3cqw; border-left: 1px solid var(--hair); }
+
+    .t-market .pm { margin-top: 4cqw; font-size: 2.45cqw; border-top: 1px solid var(--fg); }
+    .t-market .pm h3 { margin: 1.2cqw 0 1.2cqw; }
+
+    .t-market .pm .ln {
+      display: grid;
+      grid-template-columns: 8cqw 1fr;
+      padding: .7cqw 0;
+      border-bottom: 1px solid var(--hair);
+    }
+
+    .t-market .pm .ln .n { opacity: .55; }
+    .t-market .pm .gap { height: 1.4cqw; background: var(--fg); }
+
+    .t-market .note .flow { margin-right: 14cqw; }
+
+    /* ═════════════ CHROME ═════════════ */
+
+    .chrome {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: baseline;
+      gap: 1.6em;
+      padding: 16px 22px;
+      pointer-events: none;
+    }
+
+    .chrome > * { pointer-events: auto; }
+    body.reading .mark::before { content: '← '; opacity: .55; }
+
+    .live {
+      flex: 1;
+      opacity: .45;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      pointer-events: none;
+    }
+
+    .issues { display: flex; gap: 1.1em; }
+    .issues button { opacity: .4; padding: 0 1px; }
+    .issues button:hover { opacity: .8; }
+    .issues button[aria-current="true"] { opacity: 1; text-decoration: underline; text-underline-offset: 4px; }
+
+    .count {
+      opacity: .45;
+      font-variant-numeric: tabular-nums;
+      min-width: 7.5em;
+      text-align: right;
+      cursor: default;
+    }
+
+    body.toc-btn .count { opacity: .8; cursor: pointer; }
+    body.toc-btn .count::after { content: ' ▾'; }
+    body.toc-btn .count:hover { opacity: 1; }
+
+    .hint, .zoomreset {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      z-index: 20;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      padding: 4px 0;
+    }
+
+    .hint { opacity: .45; pointer-events: none; transition: opacity .6s ease; }
+    .hint.gone, body.zoomed .hint { opacity: 0; }
+
+    .zoomreset { opacity: .8; }
+    .zoomreset[hidden] { display: none; }
+    .zoomreset b { font-weight: 400; opacity: .55; margin-right: .8em; }
+
+    .corner {
+      position: fixed;
+      bottom: 0;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 22px;
+    }
+
+    .corner { pointer-events: none; }
+    .corner .tab, .corner.open .panel-body { pointer-events: auto; }
+    .corner.bl { left: 0;  align-items: flex-start; }
+    .corner.br { right: 0; align-items: flex-end; }
+
+    .tab { display: inline-flex; gap: .8em; padding: 4px 0; opacity: .6; }
+    .tab:hover, .corner.open .tab { opacity: 1; }
+    .tab .pm2::before { content: '+'; }
+    .corner.open .tab .pm2::before { content: '−'; }
+
+    .panel {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 300ms var(--ease);
+    }
+
+    .corner.open .panel { grid-template-rows: 1fr; }
+    .panel-clip { min-height: 0; overflow: hidden; }
+
+    .panel-body {
+      width: min(340px, calc(100vw - 44px));
+      max-height: calc(100dvh - 130px);
+      overflow: auto;
+      margin-bottom: 10px;
+      padding: 18px 18px 20px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      touch-action: pan-y;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .panel-body .lbl { margin-bottom: 1.4em; }
+    .panel-body p { margin-bottom: 1em; opacity: .9; }
+
+    .mail {
+      display: inline-flex;
+      gap: .75rem;
+      margin-top: .6em;
+      padding: .45rem .75rem;
+      border: 1px solid var(--rule);
+    }
+
+    .mail::after { content: '→'; }
+    .mail:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+
+    /* contents pane / popover / sheet */
+    .toc {
+      position: fixed;
+      z-index: 25;
+      left: 22px;
+      top: 50%;
+      width: var(--tocw, 150px);
+      font-size: 11px;
+      line-height: 1.45;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-10px, -50%);
+      transition: opacity .35s ease, transform .45s var(--ease);
+    }
+
+    body.toc-pane .toc:not(.open) { opacity: 1; transform: translate(0, -50%); }
+    body.toc-pane .toc:not(.open) li button { pointer-events: auto; }
+
+    .toc-h { opacity: .45; margin-bottom: 1.2em; }
+    .toc ol { list-style: none; }
+
+    .toc li button {
+      display: grid;
+      grid-template-columns: 2.4em 1fr;
+      gap: .3em;
+      width: 100%;
+      padding: .28em 0;
+      opacity: .45;
+      transition: opacity .2s ease;
+    }
+
+    .toc li button:hover { opacity: 1; }
+    .toc li button.cur { opacity: 1; }
+    .toc li button.cur .n::before { content: ''; position: absolute; left: -12px; top: .72em; width: 7px; height: 1px; background: currentColor; }
+    .toc .n { position: relative; }
+    .toc small { display: block; opacity: .6; font-size: inherit; }
+
+    .toc.open {
+      z-index: 40;
+      left: auto;
+      right: 22px;
+      top: 46px;
+      width: 270px;
+      max-height: calc(100dvh - 110px);
+      overflow: auto;
+      padding: 16px 18px 18px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      opacity: 1;
+      pointer-events: auto;
+      transform: none;
+      touch-action: pan-y;
+    }
+
+    body.zoomed .tab,
+    body.zoomed .zoomreset,
+    body.zoomed .chrome .mark,
+    body.zoomed .chrome .issues,
+    body.zoomed .chrome .count {
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      padding: 2px 8px;
+      opacity: 1;
+    }
+
+    body.zoomed .chrome .live { visibility: hidden; }
+    body.zoomed .toc:not(.open) { opacity: 0; pointer-events: none; }
+
+    /* ── the dial: the contents pane, brought to the centre and wound into a wheel of pages ── */
+    .dial {
+      --dw: min(460px, calc(100vw - 32px));
+      position: fixed;
+      left: 50%; top: 50%;
+      width: var(--dw);
+      margin-left: calc(var(--dw) / -2);
+      height: 0;
+      z-index: 26;
+      pointer-events: none;
+    }
+
+    .drum { position: absolute; left: 0; top: 0; width: 100%; height: 0; }
+
+    .dr {
+      position: absolute;
+      left: 0; top: -19px;
+      width: 100%;
+      height: 38px;
+      display: grid;
+      grid-template-columns: 5.4em minmax(0, 1fr);
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.5rem 0.8rem;
-      border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
-      text-decoration: none;
-      transition: background 120ms ease, border-color 120ms ease;
+      font-size: 14px;
+      line-height: 1.2;
+      white-space: nowrap;
+      transform-origin: 0 50%;
+      transition: transform .3s var(--ease), opacity .3s ease;
     }
 
-    .submit-email a::after {
-      content: '→';
+    .dial.scrub .dr { transition-duration: .12s; }
+    .dr .t { overflow: hidden; text-overflow: ellipsis; }
+    .dr .t small { display: block; font-size: 11px; opacity: .5; overflow: hidden; text-overflow: ellipsis; }
+    .dr:not(.mj) .t { opacity: .45; }
+    .dr:not(.mj) .t small { display: none; }
+    .dr.on .t { opacity: 1; }
+    .dr.on .t small { display: block; }
+
+    .dwin, .dcd {
+      position: absolute;
+      left: 0; width: 100%;
+      height: 1px;
+      opacity: 0;
+      transition: opacity .3s ease .12s;
     }
 
-    .submit-email a:hover {
-      background: color-mix(in srgb, var(--ink) 6%, transparent);
-      border-color: color-mix(in srgb, var(--ink) 35%, transparent);
+    .dwin { top: -34px; background: var(--rule); }
+    .dcd  { top: 33px;  background: var(--rule); }
+    .dcd::after { content: ''; position: absolute; inset: 0; background: var(--ink); transform-origin: 0 0; transform: scaleX(0); }
+    .dial.counting .dcd::after { animation: dial-count 1s linear forwards; }
+    @keyframes dial-count { to { transform: scaleX(1); } }
+
+    .dial-h, .dial-f {
+      position: absolute;
+      left: 0; width: 100%;
+      font-size: 11px;
+      opacity: 0;
+      transition: opacity .3s ease .12s;
+      white-space: nowrap;
     }
 
-    /* ── FOOTER ── */
+    .dial-h { top: -210px; }
+    .dial-f { top: 196px; }
 
-    footer {
-      margin-top: 4rem;
-      padding: 1.5rem 0 4rem;
-      border-top: 1px solid var(--ink);
-      border-color: color-mix(in srgb, var(--ink) 15%, transparent);
-      opacity: 0.5;
+    body.dialing .dwin, body.dialing .dcd { opacity: 1; }
+    body.dialing .dial-h, body.dialing .dial-f { opacity: .5; }
+    .veil { position: fixed; inset: 0; z-index: 25; background: var(--desk); opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+    body.dialing .veil { opacity: .975; }
+    body.dialing .toc, body.dialing .hint { opacity: 0 !important; pointer-events: none !important; }
+
+    #measure {
+      position: fixed;
+      left: -30000px; top: 0;
+      width: 700px;
+      visibility: hidden;
+      pointer-events: none;
     }
 
-    /* ── RESPONSIVE ── */
+    .mpage { position: absolute; top: 0; left: 0; width: 700px; height: 990px; container-type: size; }
 
     @media (max-width: 640px) {
-      :root {
-        --page-gutter: 1rem;
-        --bleed-gutter: 0.6rem;
+      html, body { font-size: 11.5px; }
+      .chrome { padding: 13px 14px; gap: 1em; }
+      .live { display: none; }
+      .issues { margin: 0 auto; }
+      .count { min-width: 0; }
+      .corner { padding: 12px 14px; }
+      .hint, .zoomreset { bottom: 12px; }
+      .panel-body { width: calc(100vw - 28px); }
+
+      .toc.open {
+        left: 0; right: 0; top: auto; bottom: 0;
+        width: auto;
+        max-height: 72dvh;
+        border-width: 1px 0 0;
+        padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+        font-size: 13px;
       }
 
-      .columns {
-        grid-template-columns: 1fr;
-      }
-
-      .bar {
-        gap: 1rem;
-        align-items: flex-start;
-        flex-direction: column;
-        margin-bottom: 3rem;
-      }
-
-      .col-info {
-        border-left: none;
-        border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
-        padding-left: 0;
-        padding-top: 4rem;
-      }
-
-      .piece-meta {
-        flex-direction: column;
-        gap: 0.15rem;
-      }
+      .toc.open li button { padding: .55em 0; }
     }
-
   </style>
 </head>
 <body>
 
-  <div class="top">
-    <div class="site-name" id="siteTitle">katakata</div>
-  </div>
+  <div class="deskmark" aria-hidden="true">katakata</div>
 
-  <div class="bar">
-    <nav>
-      <a href="#issues">issues</a>
-      <a href="#about">about</a>
-      <a href="#submit">submit</a>
+  <header class="chrome">
+    <button class="mark" id="home">katakata</button>
+    <span class="live" id="rh"></span>
+    <nav class="issues" aria-label="issues">
+      <button data-issue="0">01</button>
+      <button data-issue="1">02</button>
+      <button data-issue="2">03</button>
     </nav>
+    <button class="count" id="count" aria-live="polite"></button>
+  </header>
+
+  <main id="stage" aria-label="katakata: three issues as books. click a cover to open, drag a page corner or tap its edge to turn, press escape to close.">
+    <div id="zoom"></div>
+  </main>
+
+  <div class="veil" aria-hidden="true"></div>
+  <div class="dial" id="dial" aria-hidden="true">
+    <div class="dial-h" id="dialh"></div>
+    <i class="dwin"></i><i class="dcd"></i>
+    <div class="drum" id="drum"></div>
+    <div class="dial-f" id="dialf"></div>
   </div>
 
+  <nav class="toc" id="toc" aria-label="contents">
+    <div class="toc-h" id="toch"></div>
+    <ol id="tocl"></ol>
+  </nav>
 
-  <div class="columns">
+  <div class="hint" id="hint"></div>
+  <button class="zoomreset" id="zoomreset" hidden><b>100%</b>reset</button>
 
-    <!-- LEFT COLUMN -->
-    <div class="col-issues" id="issues">
+  <div class="corner bl">
+    <div class="panel" id="p-about">
+      <div class="panel-clip">
+        <div class="panel-body">
+          <div class="lbl">about</div>
+          <p>katakata publishes fiction, poetry, and essays in english and bahasa malaysia.</p>
+          <p>we read both languages without preference. we want work that is precise and grounded.</p>
+          <p>based in kuala lumpur.</p>
+        </div>
+      </div>
+    </div>
+    <button class="tab" aria-expanded="false" aria-controls="p-about"><span>about</span><span class="pm2"></span></button>
+  </div>
 
-      <div class="issue-header">
-        <pre class="issue-art" aria-hidden="true">      |       |        |       | |
+  <div class="corner br">
+    <div class="panel" id="p-submit">
+      <div class="panel-clip">
+        <div class="panel-body">
+          <div class="lbl">submit</div>
+          <p>send fiction, poetry, and essays in english or bahasa malaysia. simultaneous submissions are fine; let us know if the work is accepted elsewhere.</p>
+          <p>fiction and essays: up to 3,500 words. poetry: up to five poems. reply within eight weeks.</p>
+          <a class="mail" href="mailto:submit@katakata.my">submit@katakata.my</a>
+        </div>
+      </div>
+    </div>
+    <button class="tab" aria-expanded="false" aria-controls="p-submit"><span>submit</span><span class="pm2"></span></button>
+  </div>
+
+  <div id="measure" aria-hidden="true"></div>
+
+<script type="text/plain" id="art">
+      |       |        |       | |
  ' |   |   |     '  |      '
               |           |     |
  '     |  _,..--I--..,_ |
@@ -294,7 +1107,7 @@
 |  | '   '     `Y` __ '     '
   '|        ,-. I /  \       |  |
  |    |    /   )I \  /     '   |
-'  '      /   / I_.""._ 
+'  '      /   / I_.""._
 |  |    ,l  .'..`      `.   ' |  |
  |     / | /   \        l
       /, '"  .  \      ||   |   |
@@ -308,93 +1121,1820 @@
        |      |  | || |      |
  ' |   '.____,'  \_||_/   |    |
          |/\|    [_][_]      |
-""""""""""""""""""""""""""""""""""</pre>
-        <div class="issue-label">issue 01 — after rain — april 2026</div>
-      </div>
+""""""""""""""""""""""""""""""""""</script>
 
-      <div class="piece">
-        <div class="piece-meta">
-          <span>fiction</span>
-          <span>priya nair</span>
-        </div>
-        <div class="piece-title">the men who stayed</div>
-        <a class="read-more" href="#">read →</a>
-      </div>
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const stage   = $('#stage');
+  const zoomEl  = $('#zoom');
+  const rhEl    = $('#rh');
+  const countEl = $('#count');
+  const hint    = $('#hint');
+  const zoomBtn = $('#zoomreset');
+  const measure = $('#measure');
+  const tocEl   = $('#toc');
+  const tocHead = $('#toch');
+  const tocList = $('#tocl');
+  const corners = [...document.querySelectorAll('.corner')];
+  const issueBtns = [...document.querySelectorAll('.issues button')];
 
-      <div class="piece">
-        <div class="piece-meta">
-          <span>puisi</span>
-          <span>ahmad farouk musa</span>
-        </div>
-        <div class="piece-title">orang-orang di tepi jalan</div>
-        <a class="read-more" href="#">baca →</a>
-      </div>
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const coarse = matchMedia('(pointer: coarse)').matches;
+  const RATIO  = Math.SQRT2;
+  const PI     = Math.PI;
+  const pad    = x => String(x).padStart(2, '0');
+  const clamp  = (v, a, b) => Math.min(b, Math.max(a, v));
+  const easeIO  = k => k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+  const easeOut = k => 1 - Math.pow(1 - k, 3);
 
-      <div class="piece">
-        <div class="piece-meta">
-          <span>essay</span>
-          <span>lin mei xian</span>
-        </div>
-        <div class="piece-title">on not going home</div>
-        <a class="read-more" href="#">read →</a>
-      </div>
+  const ART = $('#art').textContent.replace(/^\n/, '')
+    .replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
-      <div class="piece">
-        <div class="piece-meta">
-          <span>cerpen</span>
-          <span>nurul ain ibrahim</span>
-        </div>
-        <div class="piece-title">sebelum subuh</div>
-        <a class="read-more" href="#">baca →</a>
-      </div>
+  /* ══════════ PATTERNS ══════════
+     rain and rings, painted once per colour scheme into images */
 
-    </div>
+  const patternURLs = [];
+  function canvasURL(c) {
+    return new Promise(res => c.toBlob(b => { const u = URL.createObjectURL(b); patternURLs.push(u); res(u); }, 'image/png'));
+  }
 
-    <!-- RIGHT COLUMN -->
-    <div class="col-info">
+  async function paintPatterns() {
+    const cs = getComputedStyle(document.documentElement);
+    const ink = cs.getPropertyValue('--ink').trim(), paper = cs.getPropertyValue('--paper').trim();
+    const old = patternURLs.splice(0);
 
-      <div class="section" id="about">
-        <div class="section-label">about</div>
-        <div class="section-body">
-          <p>katakata publishes fiction, poetry, and essays in english and bahasa malaysia.</p>
-          <p>we read both languages without preference. we want work that is precise and grounded.</p>
-          <p>based in kuala lumpur.</p>
-        </div>
-      </div>
+    // rain: one tile of 4.42 × 11.7 page-width units, two slanted dashes
+    const U = 24, rc = document.createElement('canvas');
+    rc.width = Math.round(4.42 * U); rc.height = Math.round(11.7 * U);
+    const r = rc.getContext('2d');
+    r.strokeStyle = ink; r.lineWidth = .22 * U; r.lineCap = 'butt';
+    const dash = (x, y, a) => { r.globalAlpha = a; r.beginPath(); r.moveTo(x * U, y * U); r.lineTo((x - .53) * U, (y + 3.38) * U); r.stroke(); };
+    dash(3.1, .2, 1); dash(.9, 6.05, .65);
 
-      <div class="section submit-section" id="submit">
-        <div class="section-label">submit</div>
-        <div class="section-body">
-          <p>send fiction, poetry, and essays in english or bahasa malaysia. simultaneous submissions are fine; let us know if the work is accepted elsewhere.</p>
-          <p>fiction and essays: up to 3,500 words. poetry: up to five poems. reply within eight weeks.</p>
-        </div>
-        <div class="submit-email">
-          <a href="mailto:submit@katakata.my">submit@katakata.my</a>
-        </div>
-      </div>
+    // rings: concentric lines around a solid disc, fading out
+    const ring = (cx, cy, disc, solid, fade, alpha) => {
+      const V = 10, c = document.createElement('canvas');
+      c.width = 100 * V; c.height = Math.round(141.42 * V);
+      const g = c.getContext('2d');
+      g.fillStyle = paper; g.strokeStyle = paper;
+      g.beginPath(); g.arc(cx * V, cy * V, disc * V, 0, 2 * PI); g.fill();
+      g.lineWidth = .18 * V;
+      for (let rad = 3.2; rad < fade; rad += 3.2) {
+        if (rad <= disc) continue;
+        g.globalAlpha = alpha * clamp((fade - rad) / (fade - solid), 0, 1);
+        g.beginPath(); g.arc(cx * V, cy * V, rad * V, 0, 2 * PI); g.stroke();
+      }
+      return canvasURL(c);
+    };
 
-    </div>
+    const [rain, tr, bl, cc] = await Promise.all([
+      canvasURL(rc),
+      ring(100, 0, 17, 55, 105, .55),
+      ring(0, 141.42, 17, 55, 105, .55),
+      ring(50, 70.71, 9, 30, 75, .5),
+    ]);
+    const st = document.documentElement.style;
+    st.setProperty('--rain-ink', `url(${rain})`);
+    st.setProperty('--rings-tr', `url(${tr})`);
+    st.setProperty('--rings-bl', `url(${bl})`);
+    st.setProperty('--rings-c', `url(${cc})`);
+    setTimeout(() => old.forEach(u => URL.revokeObjectURL(u)), 2000);
+  }
 
-  </div>
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintPatterns);
 
+  /* ══════════ CONTENT ══════════ */
 
-  <footer>
-    katakata — kuala lumpur — all rights remain with the authors
-  </footer>
+  const ISSUES = [
+    { no: '01', title: 'after rain', date: 'april 2026', theme: 'rain', seed: 1101, pieces: [
+      { genre: 'fiction', lang: 'english',         title: 'the men who stayed',          author: 'priya nair',        kind: 'prose' },
+      { genre: 'puisi',   lang: 'bahasa malaysia', title: 'orang-orang di tepi jalan',   author: 'ahmad farouk musa', kind: 'poem'  },
+      { genre: 'essay',   lang: 'english',         title: 'on not going home',           author: 'lin mei xian',      kind: 'prose' } ] },
+    { no: '02', title: 'borrowed light', date: 'september 2026', theme: 'light', seed: 2202, pieces: [
+      { genre: 'cerpen',  lang: 'bahasa malaysia', title: 'sebelum subuh',               author: 'nurul ain ibrahim', kind: 'prose' },
+      { genre: 'poetry',  lang: 'english',         title: 'field notes in thunder',      author: 'sarah ariff',       kind: 'poem'  },
+      { genre: 'essay',   lang: 'english',         title: 'the weather inside the mall', author: 'daniel ong',        kind: 'prose' } ] },
+    { no: '03', title: 'night market', date: 'february 2027', theme: 'market', seed: 3303, pieces: [
+      { genre: 'fiction', lang: 'english',         title: 'borrowed light',              author: 'j. ravindran',      kind: 'prose', stall: '07' },
+      { genre: 'puisi',   lang: 'bahasa malaysia', title: 'peta kecil untuk pulang',     author: 'amira razak',       kind: 'poem',  stall: '12' },
+      { genre: 'essay',   lang: 'english',         title: 'after the last train',        author: 'mei foong lim',     kind: 'prose', stall: '19' } ] },
+  ];
 
+  const P_NOTE = 3, P_CONTRIB = 16, P_DONORS = 17, P_COLO = 18, P_BACK = 20;
 
-  <script>
-    const el = document.getElementById('siteTitle');
+  const LW = ('lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore ' +
+    'magna aliqua enim ad minim veniam quis nostrud exercitation ullamco laboris nisi aliquip ex ea commodo consequat duis ' +
+    'aute irure in reprehenderit voluptate velit esse cillum eu fugiat nulla pariatur excepteur sint occaecat cupidatat non ' +
+    'proident sunt culpa qui officia deserunt mollit anim id est laborum curabitur pretium tincidunt lacus gravida orci odio ' +
+    'nullam varius turpis pharetra eros bibendum nec luctus felis sollicitudin mauris integer nibh euismod praesent blandit ' +
+    'quam vel mi augue congue elementum morbi pede facilisis laoreet donec nunc viverra egestas vestibulum malesuada tellus ' +
+    'hujan malam jalan pulang cahaya pasar').split(' ');
+  const SHORT = LW.filter(w => w.length >= 3 && w.length <= 7);
 
-    function stretch() {
-      el.style.transform = 'none';
-      const scale = el.parentElement.clientWidth / el.scrollWidth;
-      el.style.transform = 'scaleX(' + scale + ')';
+  function mulberry(a) {
+    return () => {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  const words = (r, n, list = LW) => Array.from({ length: n }, () => list[Math.floor(r() * list.length)]);
+
+  function sentence(r) {
+    const n = 5 + Math.floor(r() * 13);
+    const w = words(r, n);
+    if (n > 9 && r() < .55) w[Math.floor(n / 2)] += ',';
+    w[n - 1] += '.';
+    return w;
+  }
+
+  function paras(r, total, minS = 2, maxS = 6) {
+    const ps = []; let c = 0;
+    while (c < total) {
+      const p = [], ns = minS + Math.floor(r() * (maxS - minS + 1));
+      for (let i = 0; i < ns; i++) p.push(...sentence(r));
+      ps.push(p); c += p.length;
+    }
+    return ps;
+  }
+
+  function flatten(ps) {
+    const w = [], p = [];
+    ps.forEach((para, pi) => para.forEach(x => { w.push(x); p.push(pi); }));
+    return { w, p };
+  }
+
+  function poem(r) {
+    const lines = [], stanzas = 2 + Math.floor(r() * 2);
+    for (let s = 0; s < stanzas; s++) {
+      if (s) lines.push('');
+      const nl = 3 + Math.floor(r() * 2);
+      for (let l = 0; l < nl; l++) {
+        let t = words(r, 2 + Math.floor(r() * 4)).join(' ');
+        if (s === stanzas - 1 && l === nl - 1) t += '.';
+        else if (r() < .3) t += ',';
+        lines.push(t);
+      }
+    }
+    return lines;
+  }
+
+  /* page parts */
+  const by     = pc => pc.lang === 'bahasa malaysia' ? 'oleh' : 'by';
+  const genres = I => [...new Set(I.pieces.map(p => p.genre))].join(' · ');
+  const rh     = (a, b) => `<div class="rh"><span>${a}</span><span>${b}</span></div>`;
+  const st     = (w, sx = 1.4) => `<span class="st" style="--len:${Math.max(2, w.length)};--sx:${sx}">${w}</span>`;
+  const padTo  = (s, cols) => s.padEnd(Math.ceil(s.length / cols) * cols, ' ');
+  const cells  = s => [...s].map(c => c === ' ' ? '<i class="on"></i>' : `<i>${c}</i>`).join('');
+  const roman  = ['i.', 'ii.', 'iii.'];
+  const lrow   = (k, v) => `<div><dt>${k}</dt><span class="lead"></span><dd>${v}</dd></div>`;
+
+  function folio(I, no) {
+    const lab = `<span>katakata ${I.no}</span>`, n = `<span>${pad(no)}</span>`;
+    return `<div class="folio">${no % 2 ? lab + n : n + lab}</div>`;
+  }
+
+  function stallGrid(r, count, lit) {
+    const on = new Set(); while (on.size < lit) on.add(Math.floor(r() * count));
+    return Array.from({ length: count }, (_, k) => `<span class="${on.has(k) ? 'on' : ''}">${pad(k + 1)}</span>`).join('');
+  }
+
+  function sections(I) {
+    return [
+      { t: 'cover', p: 1 },
+      { t: 'contents', p: 2 },
+      { t: 'editor’s note', p: P_NOTE },
+      ...I.pieces.map((pc, j) => ({ t: pc.title, a: pc.author, p: 4 + 4 * j })),
+      { t: 'contributors', p: P_CONTRIB },
+      { t: 'donors', p: P_DONORS },
+      { t: 'colophon', p: P_COLO },
+      { t: 'back cover', p: P_BACK },
+    ];
+  }
+
+  /* ── page builders ── */
+
+  function cover(I, r) {
+    if (I.theme === 'rain') return { cls: 'cover', rh: 'cover', html:
+      `<div class="deco rain"></div><div class="deco rain b"></div>
+       ${rh('katakata', 'issue ' + I.no)}
+       <div class="rc-mid"><div class="vt">${I.title}</div><pre class="art">${ART}</pre></div>
+       <div class="rc-foot"><span class="big">${I.no}</span><span>${I.date}<br><span class="lbl">${genres(I)}</span></span></div>` };
+
+    if (I.theme === 'light') return { cls: 'cover inv', rh: 'cover', html:
+      `<div class="deco rings"></div>
+       ${rh('katakata', 'issue ' + I.no)}
+       <div class="fill"></div>
+       <h1 class="lc-t">${I.title.replace(' ', '<br>')}</h1>
+       <div class="lc-meta"><span>${I.date}</span><span>${genres(I)}</span></div>
+       ${st(I.no)}` };
+
+    return { cls: 'cover', rh: 'cover', html:
+      `${rh('katakata', 'issue ' + I.no)}
+       <div class="grid4">${cells(padTo(I.title, 4))}</div>
+       <div class="fill"></div>
+       <div class="stalls">${stallGrid(r, 24, 7)}</div>
+       <div class="mc-foot"><span class="big">${I.no}</span><span>${I.date}<br><span class="lbl">${genres(I)}</span></span></div>` };
+  }
+
+  function contents(I) {
+    const items = I.pieces.map((pc, j) => {
+      const p = 4 + 4 * j;
+      return `<a class="ti" data-goto="${p}" href="#"><span class="pn">${pad(p)}</span><span class="tt">${pc.title}<small>${pc.genre} — ${pc.author}</small></span></a>`;
+    }).join('');
+    const extra = [['editor’s note', P_NOTE], ['contributors', P_CONTRIB], ['donors', P_DONORS], ['colophon', P_COLO]]
+      .map(([n, p]) => `<a class="ts" data-goto="${p}" href="#"><span>${n}</span><span>${pad(p)}</span></a>`).join('');
+    return { cls: 'toc-pg' + (I.theme === 'light' ? ' inv' : ''), rh: 'contents', html:
+      `${rh('contents', 'issue ' + I.no + ' — ' + I.title)}
+       <h2 class="h">contents</h2>
+       <div class="fill"></div>
+       <div class="tis">${items}</div>
+       <div class="tss">${extra}</div>
+       ${folio(I, 2)}` };
+  }
+
+  function note(I) {
+    return { cls: 'note', rh: 'editor’s note', html:
+      `${rh('editor’s note', 'issue ' + I.no)}
+       <h2 class="h">a note on<br>${I.title}</h2>
+       <div class="flow" data-flow="${I.no}-n"></div>
+       <div class="sig lbl">— the editors, kuala lumpur</div>
+       ${folio(I, P_NOTE)}` };
+  }
+
+  function opener(I, pc, j) {
+    const no = 4 + 4 * j;
+    const byline = `<div class="by"><span class="lbl">${by(pc)}</span><span>${pc.author}</span><span class="lbl">${pc.lang}</span></div>`;
+
+    if (I.theme === 'rain') return { cls: 'op', rh: pc.title, html:
+      `<div class="deco rain top"></div>
+       ${rh(pc.genre, (j + 1) + ' / 3')}
+       <div class="fill"></div>
+       <h2 class="stack">${pc.title.split(' ').map(w => `<span>${w}</span>`).join('')}</h2>
+       ${byline}${folio(I, no)}` };
+
+    if (I.theme === 'light') return { cls: 'op inv', rh: pc.title, html:
+      `<div class="deco glow"></div>
+       ${rh(pc.genre, (j + 1) + ' / 3')}
+       <div class="fill"></div>
+       <h2 class="stretch">${pc.title.split(' ').map(w => st(w, 2)).join('')}</h2>
+       ${byline}${folio(I, no)}` };
+
+    return { cls: 'op', rh: pc.title, html:
+      `${rh('stall ' + pc.stall, pc.genre)}
+       <div class="grid6">${cells(padTo(pc.title, 6))}</div>
+       <div class="fill"></div>
+       <dl class="ledger">${lrow(by(pc), pc.author)}${lrow('genre', pc.genre)}${lrow('language', pc.lang)}${lrow('pages', pad(no + 1) + '–' + pad(no + 3))}</dl>
+       ${folio(I, no)}` };
+  }
+
+  function textPage(I, pc, j, k, key) {
+    const no = 5 + 4 * j + k;
+
+    if (I.theme === 'rain') return { cls: 'tx', rh: pc.title, html:
+      `${rh(pc.title, pc.author)}
+       <div class="tb"><div class="mg"><div class="deco rain"></div><span>${pc.genre}</span><span>${k + 1} / 3</span></div><div class="flow" data-flow="${key}"></div></div>
+       ${folio(I, no)}` };
+
+    if (I.theme === 'light') return { cls: 'tx', rh: pc.title, html:
+      `<div class="deco bar"><span>${pc.title} — ${pc.author}</span></div>
+       ${rh(pc.title, (k + 1) + ' / 3')}
+       <div class="flow" data-flow="${key}"></div>
+       ${folio(I, no)}` };
+
+    return { cls: 'tx', rh: pc.title, html:
+      `<div class="ticket"><span class="on">${pc.stall}</span><span>${pc.genre}</span><span>${pc.title} — ${pc.author}</span></div>
+       <div class="cols"><div class="flow" data-flow="${key}"></div><div class="flow" data-flow="${key}"></div></div>
+       ${folio(I, no)}` };
+  }
+
+  function poemPage(I, pc, j, k, lines, r) {
+    const no = 5 + 4 * j + k;
+
+    if (I.theme === 'rain') {
+      const body = lines.map(l => l
+        ? `<div class="l" style="padding-left:${[0, 4, 8, 12, 16, 6, 10][Math.floor(r() * 7)]}cqw">${l}</div>`
+        : '<div class="gap"></div>').join('');
+      return { cls: 'pmp', rh: pc.title, html:
+        `<div class="deco rain top"></div>${rh(pc.title, pc.author)}<div class="pm"><h3>${roman[k]}</h3>${body}</div><div class="fill"></div><div class="pnum">${roman[k].replace('.', '')}</div>${folio(I, no)}` };
     }
 
-    document.fonts.ready.then(stretch);
-    window.addEventListener('resize', stretch);
-  </script>
+    if (I.theme === 'light') {
+      const body = lines.map(l => l ? `<div class="l">${l}</div>` : '<div class="gap"></div>').join('');
+      return { cls: 'pmp' + (k === 1 ? ' inv' : ''), rh: pc.title, html:
+        `<div class="deco bar"><span>${pc.title} — ${pc.author}</span></div>
+         ${rh(pc.title, (k + 1) + ' / 3')}
+         ${st(roman[k].replace('.', ''))}
+         <div class="fill"></div>
+         <div class="pm"><h3>${roman[k]}</h3>${body}</div>
+         ${folio(I, no)}` };
+    }
+
+    let n = 0;
+    const body = lines.map(l => l ? `<div class="ln"><span class="n">${pad(++n)}</span><span>${l}</span></div>` : '<div class="gap"></div>').join('');
+    return { cls: 'pmp', rh: pc.title, html:
+      `<div class="ticket"><span class="on">${pc.stall}</span><span>${pc.genre}</span><span>${pc.title} — ${pc.author}</span></div>
+       <div class="pm"><h3>${roman[k]}</h3>${body}</div>
+       <div class="fill"></div>${folio(I, no)}` };
+  }
+
+  function contrib(I, r) {
+    const list = I.pieces.map((pc, j) =>
+      `<div class="ct"><div class="ct-n"><a data-goto="${4 + 4 * j}" href="#">${pc.author}</a><span class="lbl">${pc.genre}, p. ${pad(4 + 4 * j)}</span></div><p>${[...sentence(r), ...sentence(r), ...sentence(r)].join(' ')}</p></div>`).join('');
+    return { cls: 'cb', rh: 'contributors', html:
+      `${rh('contributors', 'issue ' + I.no)}<h2 class="h">contributors</h2><div class="fill"></div>${list}${folio(I, P_CONTRIB)}` };
+  }
+
+  function donors(I, r) {
+    const names = n => Array.from({ length: n }, () => `<span>${words(r, 2, SHORT).join(' ')}</span>`).join('');
+    return { cls: 'dono', rh: 'donors', html:
+      `${rh('donors', 'issue ' + I.no)}
+       <h2 class="h">with thanks</h2>
+       <p class="dn-note">${[...sentence(r), ...sentence(r)].join(' ')}</p>
+       <div class="fill"></div>
+       <div class="dn"><div class="dn-t lbl">patrons</div><div class="dn-l l1">${names(3)}</div></div>
+       <div class="dn"><div class="dn-t lbl">friends</div><div class="dn-l l2">${names(10)}</div></div>
+       <div class="dn"><div class="dn-t lbl">readers</div><div class="dn-l l3">${names(27)}</div></div>
+       ${folio(I, P_DONORS)}` };
+  }
+
+  function colophon(I) {
+    return { cls: 'colo', rh: 'colophon', html:
+      `${rh('colophon', 'issue ' + I.no)}
+       <h2 class="h">colophon</h2>
+       <dl class="meta">
+         <dt>issue</dt><dd>${I.no} — ${I.title}</dd>
+         <dt>published</dt><dd>${I.date}, kuala lumpur</dd>
+         <dt>forms</dt><dd>${genres(I)}</dd>
+         <dt>languages</dt><dd>english, bahasa malaysia</dd>
+         <dt>set in</dt><dd>ibm plex mono</dd>
+         <dt>rights</dt><dd>all rights remain with the authors</dd>
+       </dl>
+       <div class="fill"></div>
+       <div class="lbl">submissions</div>
+       <p class="note-s">send fiction, poetry, and essays in english or bahasa malaysia. reply within eight weeks.</p>
+       <a class="btn" href="mailto:submit@katakata.my">submit@katakata.my <span>→</span></a>
+       ${folio(I, P_COLO)}` };
+  }
+
+  function endpaper(I, r) {
+    if (I.theme === 'rain')  return { cls: 'endp', rh: 'endpaper', html: '<div class="deco rain dense"></div><div class="deco rain b dense"></div>' };
+    if (I.theme === 'light') return { cls: 'endp inv', rh: 'endpaper', html: '<div class="deco rings c"></div>' };
+    return { cls: 'endp', rh: 'endpaper', html: `<div class="stalls full ep">${stallGrid(r, 60, 14)}</div>` };
+  }
+
+  function back(I, r) {
+    const foot = `<div class="bc-foot"><span class="lbl">all rights remain with the authors</span><span class="lbl">${I.no}</span></div>`;
+    if (I.theme === 'rain') return { cls: 'backc', rh: 'back cover', html:
+      `<div class="deco rain"></div><div class="deco rain b"></div>
+       ${rh('katakata', 'kuala lumpur')}<div class="fill"></div>
+       <p class="bc">issue ${I.no} — ${I.title}<br>${I.date}</p>${st('katakata')}${foot}` };
+    if (I.theme === 'light') return { cls: 'backc inv', rh: 'back cover', html:
+      `<div class="deco rings bl"></div>
+       ${rh('katakata', 'kuala lumpur')}
+       <p class="bc" style="margin-top:5cqw;text-align:right">issue ${I.no} — ${I.title}<br>${I.date}</p>
+       <div class="fill"></div>${st('katakata')}${foot}` };
+    return { cls: 'backc', rh: 'back cover', html:
+      `${rh('katakata', 'kuala lumpur')}
+       <div class="stalls full">${stallGrid(r, 36, 9)}</div>
+       <div class="fill"></div>
+       <p class="bc">issue ${I.no} — ${I.title}<br>${I.date}</p>${st('katakata')}${foot}` };
+  }
+
+  function pagesFor(I) {
+    const r = mulberry(I.seed);
+    I.flows = {};
+    I.flows[I.no + '-n'] = flatten(paras(r, 420, 2, 4));
+    const P = [cover(I, r), contents(I), note(I)];
+    I.pieces.forEach((pc, j) => {
+      const key = `${I.no}-${j}`;
+      P.push(opener(I, pc, j));
+      if (pc.kind === 'prose') {
+        I.flows[key] = flatten(paras(r, 1500));
+        for (let k = 0; k < 3; k++) P.push(textPage(I, pc, j, k, key));
+      } else {
+        for (let k = 0; k < 3; k++) P.push(poemPage(I, pc, j, k, poem(r), r));
+      }
+    });
+    P.push(contrib(I, r), donors(I, r), colophon(I), endpaper(I, r), back(I, r));
+    return P;
+  }
+
+  /* ── flowing text across boxes ── */
+
+  function render(F, a, b, end) {
+    let h = '', i = a;
+    while (i < b) {
+      const pi = F.p[i]; let j = i;
+      while (j < b && F.p[j] === pi) j++;
+      const cls = (i === a && i > 0 && F.p[i - 1] === pi) ? 'cont' : (pi === 0 ? 'lede' : '');
+      let txt = F.w.slice(i, j).join(' ');
+      if (end && j === b) txt += '<i class="end"></i>';
+      h += `<p class="${cls}">${txt}</p>`;
+      i = j;
+    }
+    return h;
+  }
+
+  function fits(box) {
+    const cs = getComputedStyle(box);
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.55;
+    const last = box.lastElementChild;
+    if (!last) return true;
+    const used = last.getBoundingClientRect().bottom - box.getBoundingClientRect().top - (parseFloat(cs.paddingTop) || 0);
+    return used <= box.clientHeight - lh * .6 && box.scrollWidth <= box.clientWidth + 1;
+  }
+
+  function fitFlow(boxes, F) {
+    let pos = 0;
+    const N = F.w.length;
+    const isEnd = i => /\.$/.test(F.w[i - 1]);
+    boxes.forEach((box, bi) => {
+      const last = bi === boxes.length - 1;
+      let lo = pos, hi = Math.min(N, pos + 900);
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        box.innerHTML = render(F, pos, mid, false);
+        if (fits(box)) lo = mid; else hi = mid - 1;
+      }
+      let e = lo;
+      if (last) {
+        while (e > pos && !isEnd(e)) e--;
+        box.innerHTML = render(F, pos, e, true);
+        while (e > pos && !fits(box)) {
+          e--; while (e > pos && !isEnd(e)) e--;
+          box.innerHTML = render(F, pos, e, true);
+        }
+      } else box.innerHTML = render(F, pos, e, false);
+      pos = e;
+    });
+  }
+
+  function prepare() {
+    ISSUES.forEach(I => {
+      const wrap = document.createElement('div');
+      wrap.className = 't-' + I.theme;
+      measure.appendChild(wrap);
+      const els = pagesFor(I).map((p, k) => {
+        const box = document.createElement('div'); box.className = 'mpage';
+        const a = document.createElement('article');
+        const no = k + 1;
+        a.className = `pg ${p.cls} ${no % 2 ? 'recto' : 'verso'}` + (I.theme === 'light' && /cover|op|pmp|backc|endp/.test(p.cls) ? ' blend' : '');
+        a.dataset.rh = p.rh;
+        a.innerHTML = p.html;
+        box.appendChild(a); wrap.appendChild(box);
+        return a;
+      });
+      Object.entries(I.flows).forEach(([key, F]) =>
+        fitFlow([...wrap.querySelectorAll(`[data-flow="${key}"]`)], F));
+      I.masters = els.map(e => { e.remove(); return e; });
+      wrap.remove();
+    });
+  }
+
+  /* ══════════ BOOK ENGINE ══════════ */
+
+  let BOOKS = [], focus = 0, spread = null;
+  let pw = 0, bw = 0, bh = 0, bx = 0, by_ = 0;
+  let S = 1, Tx = 0, Ty = 0, sc = 1, zt;
+  let SEQ = 0, peek = null, carDX = 0, opened = false, hov = null;
+
+  const div = c => { const d = document.createElement('div'); d.className = c; return d; };
+
+  function buildBooks() {
+    zoomEl.textContent = '';
+    BOOKS = ISSUES.map((I, j) => {
+      const el = div('bk t-' + I.theme); el.dataset.j = j;
+      const book = div('book'), ribbon = div('ribbon'), cap = div('cap');
+      ribbon.innerHTML = '<div class="rb-fold"></div><svg viewBox="0 0 20 100" preserveAspectRatio="none" aria-hidden="true"><polygon points="1,0 19,0 19,99 10,85 1,99"/></svg>';
+      ribbon.addEventListener('animationend', () => ribbon.classList.add('settled'));
+      cap.innerHTML = `<b style="font-weight:400">${I.no}</b>${I.title}<span>${I.date}</span>`;
+      el.append(book, ribbon, cap); zoomEl.appendChild(el);
+      return { I, j, el, book, ribbon, masters: I.masters, leaves: [], lp: [], turners: new Map(), rif: new Map(), pool: new Map(), cur: 0, n: 0, last: 0, mark: 0 };
+    });
+  }
+
+  const total     = B => B.masters.length;
+  const pageW     = B => spread ? B.book.offsetWidth / 2 : B.book.offsetWidth;
+  const pageH     = B => B.book.offsetHeight;
+  const pageToCur = (B, p) => { p = clamp(p, 1, total(B)); return spread ? (p % 2 ? (p - 1) / 2 : p / 2) : p - 1; };
+  const curPage   = B => !B.leaves.length ? 1 : spread ? (B.cur === 0 ? 1 : Math.min(total(B), 2 * B.cur)) : B.cur + 1;
+  const visible   = B => spread ? [2 * B.cur, 2 * B.cur + 1].filter(p => p >= 1 && p <= total(B)) : [B.cur + 1];
+  let reading = false;
+  const isLib     = () => !reading;
+
+  function buildLeaves(B, keep) {
+    B.turners.forEach(T => cancelAnimationFrame(T.raf));
+    B.turners.clear(); B.rif.clear(); B.pool.clear();
+    B.book.textContent = '';
+    B.leaves = []; B.lp = [];
+    const M = B.masters, TOT = M.length;
+    B.n = spread ? Math.ceil(TOT / 2) : TOT;
+    B.last = spread ? B.n : B.n - 1;
+    for (let i = 0; i < B.n; i++) {
+      const leaf = div('leaf'), f = div('face front'), b = div('face back');
+      const fi = spread ? 2 * i : i, bi = spread ? 2 * i + 1 : -1;
+      f.appendChild(M[fi].cloneNode(true));
+      if (bi >= 0 && bi < TOT) b.appendChild(M[bi].cloneNode(true)); else b.appendChild(div('blankpg'));
+      leaf.append(f, b);
+      B.book.appendChild(leaf);
+      B.leaves.push(leaf);
+    }
+    B.cur = pageToCur(B, keep);
+    B.leaves.forEach((_, i) => setLeaf(B, i, i < B.cur ? 1 : 0));
+    restack(B);
+    place(B, false);
+    warm(B);
+  }
+
+  function setLeaf(B, i, p) {
+    B.lp[i] = p;
+    const L = B.leaves[i];
+    L.style.transition = 'none';
+    L.style.transform = p ? 'rotateY(-180deg)' : 'none';
+    L.classList.toggle('flipped', !!p);
+  }
+
+  function restack(B) {
+    for (let i = 0; i < B.n; i++) {
+      const L = B.leaves[i], flipped = i < B.cur;
+      let z = flipped ? i + 1 : 2 * B.n - i;
+      if (B.rif.has(i)) z = 3 * B.n + B.rif.get(i);
+      L.style.zIndex = z;
+      let vis;
+      // only the leaves that can actually be seen, or uncovered by the next turn
+      const near = B === BOOKS[focus] ? 1 : 0;
+      if (B.turners.has(i)) vis = false;
+      else if (B.rif.has(i)) vis = true;
+      else vis = spread ? (flipped ? i >= B.cur - 1 - near : i <= B.cur + near) : (B.lp[i] === 0 && i <= B.cur + near);
+      L.style.visibility = vis ? '' : 'hidden';
+    }
+  }
+
+  function place(B, anim) {
+    let off = 0;
+    if (spread) { if (B.cur === 0) off = -25; else if (B.cur === B.n) off = 25; }
+    if (!B.flipping) {
+      B.book.style.transition = anim && !reduce ? '' : 'none';
+      B.book.style.transform = `translateX(${off}%)`;
+    }
+    const k = 7 * sc;
+    const lw = spread ? k * B.cur / B.n : 0;
+    const rw = spread ? k * (B.n - B.cur) / B.n : k * (B.last - B.cur) / Math.max(1, B.last);
+    B.book.style.setProperty('--lw', lw.toFixed(1) + 'px');
+    B.book.style.setProperty('--rw', rw.toFixed(1) + 'px');
+    B.ribbon.style.left = spread ? '28%' : '6%';
+    const on = B.cur === 0 && B.mark > 3;
+    if (on && !B.ribbon.classList.contains('on')) B.ribbon.classList.remove('settled');
+    B.ribbon.classList.toggle('on', on);
+    B.ribbon.title = on ? 'p. ' + pad(B.mark) : '';
+  }
+
+  /* ── iBooks-style cylinder curl ──
+     page coords: x from the spine (0) to the fore-edge (W), y down.
+     the grabbed point P0 on the fore-edge is dragged to P; the page wraps
+     round a cylinder (radius r) whose axis is perpendicular to P0→P.        */
+
+  const KF = 1, KB = 5;                 // slices for the front and back halves of the roll
+  const ID = new DOMMatrix();
+
+  function makeTurner(B, i, spec) {
+    const W = pageW(B), H = pageH(B);
+    const back = B.lp[i] === 1;
+    const recto = B.masters[spread ? 2 * i : i];
+    const vIdx = spread ? 2 * i + 1 : -1;
+    const verso = vIdx >= 0 && vIdx < total(B) ? B.masters[vIdx] : null;
+    const frontM = back ? verso : recto, backM = back ? recto : verso;
+
+    const el = div(back ? 'tn mir' : 'tn');
+    const cbox = div('tcbox'), cast = div('tcast');
+    cbox.appendChild(cast);
+    el.appendChild(cbox);
+
+    const L = Math.ceil(Math.hypot(W, H) * 1.2);
+    const mk = m => {
+      const win = div('tw'), w = div('tp ' + (m === recto ? 'r' : 'v'));
+      win.style.height = 2 * L + 'px';
+      w.style.width = W + 'px'; w.style.height = H + 'px';
+      w.appendChild(m ? m.cloneNode(true) : div('blankpg'));
+      win.appendChild(w);
+      el.appendChild(win);
+      w._win = win;
+      return w;
+    };
+    const shaded = (m, cls) => {
+      const w = mk(m), o = document.createElement('i');
+      o.className = 'tsh ' + cls;
+      o.style.height = 2 * L + 'px';
+      w.appendChild(o); w._sh = o;
+      return w;
+    };
+    const pre  = mk(frontM);
+    const fs   = Array.from({ length: KF }, () => shaded(frontM, 'under'));
+    const bs   = Array.from({ length: KB }, () => shaded(backM, 'over'));
+    const flap = mk(backM);
+
+    const mir = new DOMMatrix().translateSelf(W, 0).scaleSelf(-1, 1);
+    el.style.visibility = 'hidden';
+    B.book.appendChild(el);
+    return { B, i, back, el, cast, pre, fs, bs, flap, W, H, L,
+             fMap: back ? mir : ID, bMap: back ? ID : mir,
+             r: 0, prog: 0, raf: 0, mode: null, seq: 0, holding: false, committed: false };
+  }
+
+  function specTurner(T, spec) {
+    const { W, H } = T;
+    const corner = spec.corner || 'bottom';
+    const y0 = corner === 'top' ? 0 : corner === 'bottom' ? H : clamp(spec.y ?? H / 2, H * .2, H * .8);
+    T.corner = corner;
+    T.P0 = { x: W, y: y0 };
+    T.n0 = corner === 'top' ? { x: .85, y: -.53 } : corner === 'bottom' ? { x: .85, y: .53 } : { x: 1, y: 0 };
+    T.P = { ...T.P0 };
+    T.r = 0; T.prog = 0; T.holding = false; T.committed = false; T.to = undefined; T.mode = null;
+  }
+
+  /* pre-build the turners for the two pages you can turn next, while idle,
+     so a drag or tap starts without a cloning hitch */
+  const idle = window.requestIdleCallback ? f => requestIdleCallback(f, { timeout: 160 }) : f => setTimeout(f, 60);
+  function warm(B) {
+    if (B.warmQ) return;
+    B.warmQ = true;
+    idle(() => {
+      B.warmQ = false;
+      if (!B.leaves.length || B.rif.size) return;
+      const want = [B.cur, B.cur - 1].filter(i => i >= 0 && i < B.n);
+      B.pool.forEach((T, i) => {
+        if (!want.includes(i) || T.back !== (B.lp[i] === 1)) { T.el.remove(); B.pool.delete(i); }
+      });
+      want.forEach(i => {
+        if (B.pool.has(i) || B.turners.has(i)) return;
+        if (B !== BOOKS[focus]) return;
+        B.pool.set(i, makeTurner(B, i));
+      });
+    });
+  }
+
+  function constrain(T, P) {
+    let { x, y } = P;
+    if (T.corner === 'edge') y = T.P0.y + (y - T.P0.y) * .25;
+    else if (T.corner === 'bottom') y = Math.min(y, T.H);
+    else y = Math.max(y, 0);
+    for (const S of [{ x: 0, y: T.P0.y }, { x: 0, y: 0 }, { x: 0, y: T.H }]) {
+      const R = Math.hypot(T.P0.x - S.x, T.P0.y - S.y);
+      const d = Math.hypot(x - S.x, y - S.y);
+      if (d > R) { x = S.x + (x - S.x) * R / d; y = S.y + (y - S.y) * R / d; }
+    }
+    // the fold straightens as the page crosses the spine, so the flap never swings out past the book
+    const dx = Math.max(0, T.P0.x - x);
+    const ang = .4 * Math.pow(1 - clamp(dx / (2 * T.W), 0, 1), 1.6);
+    const lim = dx * Math.tan(ang);
+    y = T.P0.y + clamp(y - T.P0.y, -lim, lim);
+    return { x, y };
+  }
+
+  function rOf(T, P) {
+    const d = Math.hypot(T.P0.x - P.x, T.P0.y - P.y);
+    const k1 = clamp(d / (.25 * T.W), 0, 1);
+    const k2 = clamp((P.x + T.W) / (.8 * T.W), 0, 1);
+    return T.W * .075 * Math.min(k1, k2);
+  }
+
+  /* keep the part of a convex polygon where s·(p·n − c) ≥ 0 */
+  function clipHalf(poly, nx, ny, c, s) {
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const A = poly[i], Bq = poly[(i + 1) % poly.length];
+      const fa = s * (A[0] * nx + A[1] * ny - c), fb = s * (Bq[0] * nx + Bq[1] * ny - c);
+      if (fa >= 0) out.push(A);
+      if ((fa >= 0) !== (fb >= 0)) {
+        const t = fa / (fa - fb);
+        out.push([A[0] + (Bq[0] - A[0]) * t, A[1] + (Bq[1] - A[1]) * t]);
+      }
+    }
+    return out;
+  }
+
+  function renderTurn(T) {
+    const { W, H } = T;
+    const P = constrain(T, T.P);
+    const dist = Math.hypot(T.P0.x - P.x, T.P0.y - P.y);
+    const ex = T.P0.x - P.x + T.n0.x * 1.5, ey = T.P0.y - P.y + T.n0.y * 1.5, el = Math.hypot(ex, ey);
+    const nx = ex / el, ny = ey / el;                       // fold normal, pointing at the fore-edge
+    const r = Math.max(.01, T.r);
+    T.prog = clamp((T.P0.x - P.x) / (2 * W), 0, 1);
+    let dc = (dist + PI * r) / 2;
+    let Ad = (T.P0.x - nx * dc) * nx + (T.P0.y - ny * dc) * ny;   // d(u) = u·n − Ad
+    // the spine never lifts: keep both spine corners on the flat side of the fold
+    const keep = Math.max(0, H * ny) + 10 * (1 - T.prog);
+    if (Ad < keep) { Ad = keep; dc = T.P0.x * nx + T.P0.y * ny - Ad; }
+    const Ax = T.P0.x - nx * dc, Ay = T.P0.y - ny * dc;    // a point on the roll's axis
+    const deg = Math.atan2(ny, nx) * 180 / PI;
+
+    const toF   = new DOMMatrix().rotateSelf(-deg).translateSelf(-Ax, -Ay);   // sheet → axis frame
+    const fromF = new DOMMatrix().translateSelf(Ax, Ay).rotateSelf(deg);
+    const page  = [[0, 0], [W, 0], [W, H], [0, H]];
+    const band  = (a, b) => clipHalf(clipHalf(page, nx, ny, Ad + a, 1), nx, ny, Ad + b, -1);
+
+    // one continuous gradient across the roll, laid in the fold's own frame
+    const rollShade = fromF.multiply(new DOMMatrix().translateSelf(0, -T.L).scaleSelf(r / 100, 1));
+    // a page copy seen through a window that spans [x0, x1] across the fold
+    const L2 = 2 * T.L;
+    const put = (node, poly, x0, x1, frameMap, cmap) => {
+      const win = node._win;
+      if (poly.length < 3) { if (!node._off) { win.style.visibility = 'hidden'; node._off = true; } return; }
+      if (node._off) { win.style.visibility = ''; node._off = false; }
+      const w = Math.max(0, x1 - x0);
+      if (Math.abs((node._w || 0) - w) > .05) { win.style.width = w.toFixed(2) + 'px'; node._w = w; }
+      const Wm = fromF.multiply(frameMap).translate(x0, -T.L);
+      const C  = new DOMMatrix().translateSelf(-x0, T.L).multiplySelf(toF).multiplySelf(cmap);
+      win.style.transform = Wm.toString();
+      node.style.transform = C.toString();
+      if (node._sh) node._sh.style.transform = Wm.multiply(C).inverse().multiply(rollShade).toString();
+    };
+
+    const e = .6;                                             // seam overlap, px
+    put(T.pre, clipHalf(page, nx, ny, Ad + e, -1), -L2, e, ID, T.fMap);
+
+    const half = PI * r / 2;
+    const seg = (list, from, to, cmap) => {
+      const n = list.length;
+      for (let k = 0; k < n; k++) {
+        const a = from + (to - from) * k / n, b = from + (to - from) * (k + 1) / n;
+        const xa = r * Math.sin(a / r), xb = r * Math.sin(b / r);
+        const kk = (xb - xa) / (b - a || 1e-6);
+        const fm = new DOMMatrix().translateSelf(xa - kk * a, 0).scaleSelf(kk, 1);
+        put(list[k], band(a - e, b + e), a - e, b + e, fm, cmap);
+      }
+    };
+    // underside of the roll (front face, turning away) then the top of the roll (back face, facing up)
+    seg(T.fs, 0, half, T.fMap);
+    seg(T.bs, half, 2 * half, T.bMap);
+
+    put(T.flap, clipHalf(page, nx, ny, Ad + PI * r - e, 1), PI * r - e, L2,
+        new DOMMatrix().translateSelf(PI * r, 0).scaleSelf(-1, 1), T.bMap);
+
+    // shadow on the page that is being uncovered
+    const a = clamp(dist / (.1 * W), 0, 1) * (1 - T.prog * .75);
+    const sw = W * (.04 + .14 * clamp(dist / W, 0, 1)) + r;
+    T.cast.style.width = sw.toFixed(1) + 'px';
+    T.cast.style.height = 2 * T.L + 'px';
+    T.cast.style.opacity = a.toFixed(3);
+    T.cast.style.transform = fromF.multiply(new DOMMatrix().translateSelf(r * .85, -T.L)).toString();
+  }
+
+  function getTurner(B, i, spec) {
+    let T = B.turners.get(i);
+    if (!T) {
+      T = B.pool.get(i);
+      if (T && T.back !== (B.lp[i] === 1)) { T.el.remove(); T = null; }
+      if (T) B.pool.delete(i); else T = makeTurner(B, i);
+      specTurner(T, spec || { corner: 'bottom' });
+      B.turners.set(i, T);
+      renderTurn(T);
+      T.el.style.visibility = '';
+      B.leaves[i].style.visibility = 'hidden';
+    }
+    T.seq = ++SEQ;
+    T.el.style.zIndex = 1000 + T.seq;
+    restack(B);
+    return T;
+  }
+
+  function finishTurner(T, to) {
+    const B = T.B;
+    if (B.turners.get(T.i) !== T) return;
+    cancelAnimationFrame(T.raf);
+    T.el.remove();
+    B.turners.delete(T.i);
+    setLeaf(B, T.i, to);
+    restack(B);
+    if (!B.turners.size) warm(B);
+  }
+
+  function tweenTurn(T, end, ctrl, dur, ease, done) {
+    cancelAnimationFrame(T.raf);
+    T.mode = 'tween';
+    if (reduce || dur <= 0) { T.P = { ...end }; T.r = rOf(T, T.P); renderTurn(T); T.mode = null; if (done) done(); return; }
+    const P1 = { ...T.P }, t0 = performance.now();
+    T.endP = end; T.doneFn = done; T.tEnd = t0 + dur;
+    const step = now => {
+      const k = clamp((now - t0) / dur, 0, 1), e = ease(k), u = 1 - e;
+      T.P = { x: u * u * P1.x + 2 * u * e * ctrl.x + e * e * end.x, y: u * u * P1.y + 2 * u * e * ctrl.y + e * e * end.y };
+      T.r = rOf(T, T.P);
+      renderTurn(T);
+      if (k < 1) T.raf = requestAnimationFrame(step);
+      else { T.raf = 0; T.mode = null; if (done) done(); }
+    };
+    T.raf = requestAnimationFrame(step);
+  }
+
+  /* a quick second tap: turns already in flight finish fast instead of piling up */
+  function hurry(B, except) {
+    const now = performance.now();
+    B.turners.forEach(T2 => {
+      if (T2 === except || !T2.committed || T2.mode !== 'tween' || !T2.endP) return;
+      if (T2.tEnd - now <= 190) return;
+      const end = T2.endP, ctrl = { x: (T2.P.x + end.x) / 2, y: (T2.P.y + end.y) / 2 };
+      tweenTurn(T2, end, ctrl, 190, easeOut, T2.doneFn);
+    });
+  }
+
+  function follow(T, target, k, onSettle) {
+    T.target = target; T.fk = k; T.onSettle = onSettle || null;
+    if (T.mode === 'follow') return;
+    cancelAnimationFrame(T.raf);
+    T.mode = 'follow';
+    const step = () => {
+      const tg = T.target;
+      T.P = { x: T.P.x + (tg.x - T.P.x) * T.fk, y: T.P.y + (tg.y - T.P.y) * T.fk };
+      T.r = rOf(T, T.P);
+      renderTurn(T);
+      if (T.holding || Math.hypot(tg.x - T.P.x, tg.y - T.P.y) > .35) T.raf = requestAnimationFrame(step);
+      else { T.raf = 0; T.mode = null; const f = T.onSettle; T.onSettle = null; if (f) f(); }
+    };
+    T.raf = requestAnimationFrame(step);
+  }
+
+  /* ── state changes ── */
+
+  function commit(B, i, to, spec) {
+    if (B === BOOKS[focus]) reading = true;
+    const before = B.cur;
+    if (to === 1 && i === B.cur) B.cur = i + 1;
+    else if (to === 0 && i === B.cur - 1) B.cur = i;
+    if (peek && peek.B === B && peek.i === i) peek = null;
+    unpeek();
+    const T = getTurner(B, i, spec);
+    hurry(B, T);
+    T.holding = false; T.committed = true; T.to = to;
+    const complete = to === (T.back ? 0 : 1);
+    const end = complete ? { x: -T.W, y: T.P0.y } : { ...T.P0 };
+    const fresh = Math.hypot(T.P.x - T.P0.x, T.P.y - T.P0.y) < 3;
+    const ctrl = { x: (T.P.x + end.x) / 2, y: (T.P.y + end.y) / 2 };
+    if (complete && T.corner !== 'edge') ctrl.y += (T.corner === 'bottom' ? -1 : 1) * T.H * (fresh ? .26 : .12);
+    // a turn started while another is still moving runs quicker, so quick taps riffle instead of stacking up
+    const busy = [...B.turners.values()].some(t => t !== T && t.committed);
+    const dur = (complete ? (fresh ? 640 : 600 * clamp(1 - T.prog, .45, 1)) : 280) * (busy ? .72 : 1);
+    tweenTurn(T, end, ctrl, dur, fresh ? easeIO : easeOut, () => finishTurner(T, to));
+    restack(B); place(B, true); arrange(true); chrome();
+    if (B.cur !== before) noteTurn();
+    if (B.cur === 0) B.mark = 0;
+    warm(B);                     // the next page is ready before the next tap
+  }
+
+  function flip(B, dir, spec) {
+    if (dir > 0 && B.cur < B.last) commit(B, B.cur, 1, spec);
+    else if (dir < 0 && B.cur > 0) commit(B, B.cur - 1, 0, spec);
+  }
+
+  /* fast, compositor-only riffle for jumps of more than one leaf */
+  function riffle(B, t) {
+    if (B === BOOKS[focus]) reading = true;
+    t = clamp(t, 0, B.last);
+    unpeek();
+    B.turners.forEach(T => finishTurner(T, T.to ?? B.lp[T.i]));
+    if (t === B.cur) return 0;
+    const fwd = t > B.cur;
+    let ids = [];
+    if (fwd) for (let i = B.cur; i < t; i++) ids.push(i);
+    else     for (let i = B.cur - 1; i >= t; i--) ids.push(i);
+    B.cur = t;
+    const shown = ids.length > 4 ? [ids[0], ids[1], ids[ids.length - 2], ids[ids.length - 1]] : ids.slice();
+    ids.forEach(i => { if (!shown.includes(i)) setLeaf(B, i, fwd ? 1 : 0); });
+    const D = reduce ? 0 : 440, G = reduce ? 0 : 55;
+    shown.forEach(i => B.rif.set(i, ++SEQ));
+    restack(B);
+    void B.book.offsetWidth;
+    shown.forEach((i, k) => {
+      const L = B.leaves[i];
+      B.lp[i] = fwd ? 1 : 0;
+      L.classList.toggle('flipped', fwd);
+      L.style.transition = D ? `transform ${D}ms cubic-bezier(.45,.05,.25,1) ${Math.round(k * G)}ms` : 'none';
+      L.style.transform = fwd ? 'rotateY(-180deg)' : 'none';
+    });
+    ids = shown;
+    const tot = D + G * (ids.length - 1);
+    clearTimeout(B.rifT);
+    B.rifT = setTimeout(() => {
+      ids.forEach(i => { B.rif.delete(i); B.leaves[i].style.transition = 'none'; });
+      restack(B);
+      warm(B);
+    }, tot + 40);
+    place(B, true); arrange(true); chrome(); noteTurn();
+    return tot;
+  }
+
+  function goTo(B, p) {
+    const t = pageToCur(B, p);
+    if (t === B.cur) return 0;
+    if (Math.abs(t - B.cur) === 1) { flip(B, t > B.cur ? 1 : -1, { corner: 'bottom' }); return 640; }
+    return riffle(B, t);
+  }
+
+  function enterRead() {
+    if (reading) return;
+    reading = true;
+    unpeek();
+    arrange(true); chrome();
+  }
+
+  function resumeBook(B) {
+    if (B.cur !== 0 || B.mark <= 3) return;
+    resetZoom();
+    B.ribbon.classList.remove('on');
+    riffle(B, pageToCur(B, B.mark));
+  }
+
+  /* a click on a closed cover lifts its corner a little, to show it can be turned */
+  function nudge(B) {
+    if (reduce || B.turners.size) return;
+    const i = B.cur === 0 ? 0 : B.cur - 1;
+    if (i < 0 || (B.cur !== 0 && !spread)) return;
+    const T = getTurner(B, i, { corner: 'bottom' });
+    const out = { x: T.P0.x - T.W * .13, y: T.P0.y - T.W * .07 };
+    tweenTurn(T, out, { x: (T.P0.x + out.x) / 2, y: out.y }, 260, easeOut, () =>
+      tweenTurn(T, { ...T.P0 }, { x: (T.P0.x + out.x) / 2, y: out.y }, 380, easeIO, () => finishTurner(T, B.lp[i])));
+  }
+
+  /* a finished book is turned over, back to its front cover */
+  function flipOver(B) {
+    B.mark = 0;
+    const toCover = () => {
+      B.turners.forEach(T => finishTurner(T, B.lp[T.i]));
+      B.cur = 0;
+      B.leaves.forEach((_, i) => setLeaf(B, i, 0));
+      restack(B); place(B, false); chrome();
+    };
+    if (reduce) { toCover(); return 0; }
+    const D = 950, t0 = performance.now(), half = spread ? 25 : 0;
+    const persp = Math.round(pw * sc * 3.2);
+    let swapped = false;
+    B.flipping = true;
+    B.book.style.transition = 'none';
+    const step = now => {
+      const k = clamp((now - t0) / D, 0, 1), e = easeIO(k), lift = Math.sin(k * PI);
+      let ang, off, org;
+      if (e < .5) { ang = e * 180; off = half; org = spread ? '25% 50%' : '50% 50%'; }
+      else {
+        if (!swapped) { swapped = true; toCover(); }
+        ang = -90 + (e - .5) * 180; off = -half; org = spread ? '75% 50%' : '50% 50%';
+      }
+      B.book.style.transformOrigin = org;
+      B.book.style.transform = `translateX(${off}%) translateY(${(-lift * 3).toFixed(2)}%) perspective(${persp}px) rotateY(${ang.toFixed(2)}deg) scale(${(1 + lift * .03).toFixed(4)})`;
+      if (k < 1) requestAnimationFrame(step);
+      else { B.flipping = false; B.book.style.transformOrigin = ''; place(B, false); warm(B); }
+    };
+    requestAnimationFrame(step);
+    return D;
+  }
+
+  function closeBook(B) {
+    resetZoom();
+    if (!reading) return 0;
+    let t = 0;
+    if (B.cur === B.last && B.last > 0) t = flipOver(B);
+    else if (B.cur !== 0) {
+      B.mark = curPage(B);
+      t = riffle(B, 0);
+      B.ribbon.style.animationDelay = (t + 180) + 'ms';   // drop once the book has shut
+    }
+    reading = false;
+    arrange(true); chrome();
+    return t;
+  }
+
+  function setPeek(z) {
+    const B = BOOKS[focus];
+    if (!z || !z.nearCorner || reduce || (!spread && z.dir < 0)) { unpeek(); return; }
+    const i = z.dir > 0 ? B.cur : B.cur - 1;
+    let T = B.turners.get(i);
+    if (T) {
+      if (T.committed || T.holding) return;
+      if (T.corner !== z.corner) { finishTurner(T, B.lp[i]); T = null; }
+    }
+    if (peek && (peek.B !== B || peek.i !== i)) unpeek();
+    if (!T) T = getTurner(B, i, { corner: z.corner });
+    peek = { B, i };
+    let vx = z.p.x - T.P0.x, vy = z.p.y - T.P0.y;
+    let d = Math.hypot(vx, vy);
+    if (d < 1) { vx = -T.n0.x; vy = -T.n0.y; d = 1; }
+    const want = clamp(d * 1.1, T.W * .075, T.W * .16);
+    const tx = T.P0.x + vx / d * want, ty = T.P0.y + vy / d * want;
+    follow(T, { x: tx, y: ty }, .28);
+  }
+
+  function unpeek() {
+    if (!peek) return;
+    const { B, i } = peek; peek = null;
+    const T = B.turners.get(i);
+    if (!T || T.committed || T.holding) return;
+    follow(T, { ...T.P0 }, .3, () => finishTurner(T, B.lp[i]));
+  }
+
+  function noteTurn() {
+    if (!opened && !isLib()) { opened = true; updateHint(); }
+  }
+
+  /* ── carousel ── */
+
+  function arrange(anim) {
+    const lib = isLib();
+    document.body.classList.toggle('reading', !lib);
+    const small = innerWidth < 640;
+    const Lc = lib ? (small ? .84 : .8) : 1;
+    const Ln = Lc * (small ? .8 : .7);
+    const gap = small ? 10 : 64;
+    const slot = ((Lc + Ln) * pw / 2 + gap) * sc;
+    const step = (Ln * pw + gap) * sc;
+    BOOKS.forEach((B, j) => {
+      const rel = j - focus, a = Math.abs(rel), sg = Math.sign(rel);
+      let x, s, o = 1;
+      if (rel === 0) { x = carDX; s = Lc; }
+      else if (lib) { x = sg * (slot + (a - 1) * step) + carDX; s = Ln * (hov === j ? 1.04 : 1); }
+      else { x = sg * (slot + (a - 1) * step + innerWidth * .6); s = Ln; o = 0; }
+      const lift = lib && hov === j && rel !== 0 ? -12 * sc : 0;
+      const tf = `translate(${x.toFixed(1)}px,${lift}px) scale(${s})`;
+      if (anim && B.el.style.transform !== tf) {
+        B.el.classList.add('moving');
+        clearTimeout(B.movT);
+        B.movT = setTimeout(() => B.el.classList.remove('moving'), 800);
+      }
+      B.el.style.transition = anim ? '' : 'none';
+      B.el.style.transform = tf;
+      B.el.style.opacity = o;
+      B.el.style.zIndex = rel === 0 ? 5 : 4 - a;
+      B.el.classList.toggle('side', rel !== 0);
+      B.el.classList.toggle('hov', hov === j && rel !== 0);
+      const away = !lib && rel !== 0;
+      B.el.classList.toggle('away', away);
+      clearTimeout(B.awayT);
+      if (away) B.awayT = setTimeout(() => { B.el.style.visibility = 'hidden'; }, anim ? 650 : 0);
+      else B.el.style.visibility = '';
+    });
+    updateHint();
+  }
+
+  function updateHint() {
+    if (!BOOKS.length) return;
+    const lib = isLib(), B = BOOKS[focus];
+    let t;
+    if (lib) t = coarse ? 'swipe · tap a cover' : '← → browse · click a cover';
+    else if (B.cur === 0 && B.mark > 3) t = coarse ? `bookmark · p. ${pad(B.mark)}` : `turn the cover, or click the bookmark for p. ${pad(B.mark)}`;
+    else if (B.cur === 0) t = coarse ? 'swipe to open · tap outside to close' : 'drag the corner or → to open · esc closes';
+    else t = coarse ? 'swipe · tap outside to close' : 'drag a corner · ← → turn · esc closes';
+    hint.textContent = t;
+    hint.classList.toggle('gone', !lib && opened && B.cur !== 0);
+  }
+
+  function setFocus(j) {
+    j = clamp(j, 0, BOOKS.length - 1);
+    resetZoom();
+    unpeek();
+    focus = j; carDX = 0;
+    BOOKS.forEach(restack);
+    arrange(true); chrome();
+    warm(BOOKS[focus]);
+  }
+
+  function switchIssue(j) {
+    j = clamp(j, 0, BOOKS.length - 1);
+    closeToc();
+    if (j === focus) { closeBook(BOOKS[focus]); return; }
+    if (!isLib()) {
+      const t = closeBook(BOOKS[focus]);
+      setTimeout(() => setFocus(j), t * .45);
+    } else setFocus(j);
+  }
+
+  /* ── chrome, contents pane, url ── */
+
+  function chrome() {
+    if (!BOOKS.length) return;
+    const B = BOOKS[focus], TOT = total(B), ps = visible(B);
+    countEl.textContent = ps.map(pad).join('–') + ' / ' + pad(TOT);
+    const pr = B.masters[ps[ps.length - 1] - 1].dataset.rh;
+    rhEl.textContent = `issue ${B.I.no} — ${B.I.title}` + (pr && !isLib() ? '  ·  ' + pr : '');
+    issueBtns.forEach((b, k) => b.setAttribute('aria-current', k === focus ? 'true' : 'false'));
+    renderToc();
+    try {
+      const pg = curPage(B);
+      history.replaceState(null, '', '#' + B.I.no + (!isLib() && pg > 1 ? '-' + pad(pg) : ''));
+    } catch (e) {}
+  }
+
+  function renderToc() {
+    const B = BOOKS[focus], I = B.I, ps = visible(B), now = Math.max(...ps);
+    tocHead.textContent = `issue ${I.no} — ${I.title}`;
+    const secs = sections(I);
+    let ci = 0;
+    secs.forEach((s, k) => { if (s.p <= now) ci = k; });
+    tocList.innerHTML = secs.map((s, k) =>
+      `<li><button data-goto="${s.p}" class="${k === ci ? 'cur' : ''}"><span class="n">${pad(s.p)}</span><span class="t">${s.t}${s.a ? `<small>${s.a}</small>` : ''}</span></button></li>`).join('');
+    const reading = !isLib();
+    const paneFits = spread && bx >= 150 && innerWidth >= 900;
+    document.body.classList.toggle('toc-pane', reading && paneFits && !ps.includes(2) && !ps.includes(1));
+    document.body.classList.toggle('toc-btn', reading && !paneFits);
+    tocEl.style.setProperty('--tocw', Math.min(180, bx - 34) + 'px');
+    if (!reading || paneFits) closeToc();
+  }
+
+  function closeToc() { tocEl.classList.remove('open'); }
+
+  countEl.addEventListener('click', () => {
+    if (!document.body.classList.contains('toc-btn')) return;
+    closePanels();
+    tocEl.classList.toggle('open');
+  });
+
+  /* ── layout + zoom ── */
+
+  function layout() {
+    if (Dl) closeDial(false);
+    const vw = innerWidth, vh = innerHeight, small = vw < 640;
+    const gx = small ? 12 : 56, gt = small ? 46 : 58, gb = small ? 50 : 58;
+    const W = vw - 2 * gx, H = vh - gt - gb;
+    const sp = W / H > 1.1 && vw >= 620;
+    const keeps = BOOKS.map(B => curPage(B));
+    spread = sp;
+    document.body.classList.toggle('spread', sp);
+    document.body.classList.toggle('single', !sp);
+    pw = Math.floor(sp ? Math.min(W / 2, H / RATIO) : Math.min(W, H / RATIO));
+    bw = sp ? 2 * pw : pw;
+    bh = Math.floor(pw * RATIO);
+    bx = Math.round(gx + (W - bw) / 2);
+    by_ = Math.round(gt + (H - bh) / 2);
+    S = 1; Tx = 0; Ty = 0; sc = 1;
+    peek = null;
+    size();
+    BOOKS.forEach((B, j) => buildLeaves(B, keeps[j]));
+    applyZoom(false); arrange(false); chrome();
+  }
+
+  function size() {
+    BOOKS.forEach(B => {
+      const s = B.el.style;
+      s.left = bx * sc + 'px'; s.top = by_ * sc + 'px';
+      s.width = bw * sc + 'px'; s.height = bh * sc + 'px';
+      B.book.style.setProperty('--persp', Math.round(pw * sc * 4.5) + 'px');
+      place(B, false);
+    });
+    arrange(false);
+  }
+
+  function applyZoom(anim) {
+    zoomEl.style.transition = anim ? 'transform 280ms cubic-bezier(.22,.7,.2,1)' : 'none';
+    zoomEl.style.transform = `translate(${Tx}px, ${Ty}px) scale(${S / sc})`;
+    const z = S > 1.01;
+    zoomBtn.hidden = !z;
+    zoomBtn.firstChild.textContent = Math.round(S * 100) + '%';
+    document.body.classList.toggle('zoomed', z);
+  }
+
+  function commitZoom() {
+    if (Math.abs(sc - S) < 1e-3) return;
+    sc = S; size(); applyZoom(false);
+  }
+
+  function clampT() {
+    Tx = clamp(Tx, innerWidth * (1 - S), 0);
+    Ty = clamp(Ty, innerHeight * (1 - S), 0);
+  }
+
+  function zoomAt(x, y, ns, anim) {
+    ns = clamp(ns, 1, 4);
+    const lx = (x - Tx) / S, ly = (y - Ty) / S;
+    S = ns; Tx = x - S * lx; Ty = y - S * ly;
+    clampT(); applyZoom(anim);
+    clearTimeout(zt);
+    zt = setTimeout(commitZoom, anim ? 300 : 160);
+  }
+
+  function resetZoom() {
+    if (S > 1.01 || sc !== 1) zoomAt(innerWidth / 2, innerHeight / 2, 1, true);
+  }
+
+  /* ── hit zones (page coords) ── */
+
+  function pageScale(B) {
+    const r = B.book.getBoundingClientRect();
+    return r.width / (spread ? 2 * pageW(B) : pageW(B));
+  }
+
+  function toWorld(B, x, y, mir) {
+    const r = B.book.getBoundingClientRect();
+    const s = r.width / (spread ? 2 * pageW(B) : pageW(B));
+    const ox = spread ? r.left + r.width / 2 : r.left;
+    let px = (x - ox) / s;
+    if (mir) px = -px;
+    return { x: px, y: (y - r.top) / s };
+  }
+
+  function zoneAt(x, y) {
+    if (S > 1.01 || !BOOKS.length) return null;
+    const B = BOOKS[focus];
+    if (B.rif.size) return null;
+    const W = pageW(B), H = pageH(B);
+    const E = coarse ? .2 : .085, RC = W * (coarse ? .26 : .17), sl = 16 / pageScale(B);
+    const test = (p, dir) => {
+      if (p.y < -sl || p.y > H + sl || p.x > W + sl || p.x < 0) return null;
+      const dT = Math.hypot(W - p.x, p.y), dB = Math.hypot(W - p.x, H - p.y);
+      const nearCorner = Math.min(dT, dB) < RC;
+      if (!nearCorner && p.x < W * (1 - E)) return null;
+      const corner = nearCorner ? (dT < dB ? 'top' : 'bottom') : (p.y < H * .35 ? 'top' : 'bottom');
+      return { dir, corner, nearCorner, p };
+    };
+    if (B.cur < B.last) { const z = test(toWorld(B, x, y, false), 1); if (z) return z; }
+    if (B.cur > 0) {
+      if (spread) { const z = test(toWorld(B, x, y, true), -1); if (z) return z; }
+      else {
+        const p = toWorld(B, x, y, false);
+        if (p.x > -sl && p.x < W * E && p.y > -sl && p.y < H + sl)
+          return { dir: -1, corner: p.y < H * .35 ? 'top' : 'bottom', nearCorner: false, p };
+      }
+    }
+    return null;
+  }
+
+  /* ══════════ DIAL ══════════ */
+
+  const dialEl = $('#dial'), drum = $('#drum'), dialH = $('#dialh'), dialF = $('#dialf');
+  const ROW = 38;
+  let Dl = null;
+
+  function dialEntries(B) {
+    const TOT = total(B), secs = sections(B.I), out = [];
+    for (let k = 0; k <= B.last; k++) {
+      const ps = spread ? (k === 0 ? [1] : [2 * k, 2 * k + 1].filter(p => p <= TOT)) : [k + 1];
+      const top = Math.max(...ps);
+      let sec = secs[0];
+      secs.forEach(x => { if (x.p <= top) sec = x; });
+      out.push({ k, ps, sec, major: secs.some(x => ps.includes(x.p)) });
+    }
+    return out;
+  }
+
+  // where each row sits in the side pane, so the wheel can grow out of it and fold back into it
+  function paneSpots(list) {
+    if (!document.body.classList.contains('toc-pane')) return null;
+    const box = dialEl.getBoundingClientRect();
+    return list.map(e => {
+      const b = tocList.querySelector(`button[data-goto="${e.sec.p}"]`);
+      if (!b) return null;
+      const r = b.getBoundingClientRect();
+      return { x: r.left - box.left, y: r.top + Math.min(r.height, 22) / 2 - box.top, vis: e.major };
+    });
+  }
+
+  function placeRows(D, spots, fade) {
+    D.rows.forEach((r, i) => {
+      const sp = spots && spots[i];
+      r.style.transform = sp ? `translate(${sp.x}px,${sp.y}px) scale(.786)` : `translate(0,${(i - D.sel) * 10}px) scale(.92)`;
+      r.style.opacity = sp ? (sp.vis ? (fade ? 0 : .6) : 0) : 0;
+    });
+  }
+
+  // a flat drum: rows bunch up and shrink towards the rim, the chosen one sits large in the window
+  function drumY(off) {
+    const a = Math.abs(off);
+    if (!a) return 0;
+    let y = ROW * 1.2;
+    for (let j = 1; j < a; j++) y += ROW * Math.max(.34, 1 - .14 * j);
+    return Math.sign(off) * y;
+  }
+
+  function layoutDial() {
+    Dl.rows.forEach((r, i) => {
+      const off = i - Dl.sel, a = Math.abs(off), on = !off;
+      const sc_ = on ? 1.4 : Math.max(.62, 1 - .07 * a);
+      r.style.transform = `translate(0,${drumY(off).toFixed(1)}px) scale(${sc_})`;
+      r.style.opacity = a > 6 ? 0 : on ? 1 : Math.max(0, .7 - a * .11).toFixed(3);
+      r.classList.toggle('on', on);
+    });
+    const e = Dl.list[Dl.sel];
+    countEl.textContent = e.ps.map(pad).join('–') + ' / ' + pad(total(Dl.B));
+  }
+
+  function openDial() {
+    const B = BOOKS[focus];
+    if (Dl || !reading || B.rif.size || S > 1.01) return false;
+    unpeek(); closeToc();
+    const list = dialEntries(B);
+    drum.innerHTML = list.map(e =>
+      `<div class="dr${e.major ? ' mj' : ''}"><span class="n">${e.ps.map(pad).join('–')}</span><span class="t">${e.sec.t}${e.sec.a ? `<small>${e.sec.a}</small>` : ''}</span></div>`).join('');
+    Dl = { B, list, rows: [...drum.children], sel: B.cur, dir: 0 };
+    dialH.textContent = `issue ${B.I.no} — ${B.I.title}`;
+    dialF.textContent = coarse ? 'slide to dial · lift to go · tap outside to stay' : '← → dial · let go to turn there · esc stays';
+    const spots = paneSpots(list);
+    Dl.rows.forEach(r => { r.style.transition = 'none'; });
+    placeRows(Dl, spots, false);
+    void drum.offsetWidth;
+    Dl.rows.forEach((r, i) => { r.style.transition = `transform .5s var(--ease) ${Math.min(Math.abs(i - Dl.sel), 6) * 18}ms, opacity .4s ease`; });
+    document.body.classList.add('dialing');
+    layoutDial();
+    setTimeout(() => { if (Dl) Dl.rows.forEach(r => { r.style.transition = ''; }); }, 650);
+    return true;
+  }
+
+  function closeDial(go) {
+    if (!Dl) return;
+    const D = Dl, target = D.list[D.sel].k, B = D.B;
+    clearTimeout(D.stepT); clearTimeout(D.cdT); clearTimeout(D.wheelT);
+    dialEl.classList.remove('counting');
+    Dl = null;
+    document.body.classList.remove('dialing');
+    const spots = paneSpots(D.list);
+    D.rows.forEach((r, i) => { r.style.transition = `transform .45s var(--ease) ${Math.min(Math.abs(i - D.sel), 6) * 14}ms, opacity .3s ease`; });
+    placeRows(D, spots, true);
+    setTimeout(() => { if (!Dl) drum.innerHTML = ''; }, 600);
+    if (go && target !== B.cur) {
+      if (Math.abs(target - B.cur) === 1) flip(B, target > B.cur ? 1 : -1, { corner: 'bottom' });
+      else riffle(B, target);
+    } else chrome();
+  }
+
+  function dialStep(d) {
+    if (!Dl) return;
+    const ns = clamp(Dl.sel + d, 0, Dl.list.length - 1);
+    if (ns !== Dl.sel) { Dl.sel = ns; layoutDial(); }
+  }
+
+  function dialHold(d, settle) {
+    if (!Dl) return;
+    stopCount();
+    clearTimeout(Dl.stepT);
+    Dl.dir = d;
+    let c = 0;
+    const tick = () => {
+      if (!Dl || Dl.dir !== d) return;
+      dialStep(d); c++;
+      Dl.stepT = setTimeout(tick, c < 3 ? 420 : c < 8 ? 320 : 240);
+    };
+    // opened by holding: rest on the current page first, then start winding
+    if (settle) Dl.stepT = setTimeout(tick, 450); else tick();
+  }
+
+  function dialLetGo() {
+    if (!Dl) return;
+    clearTimeout(Dl.stepT);
+    Dl.dir = 0;
+    startCount();
+  }
+
+  function startCount() {
+    if (!Dl) return;
+    stopCount();
+    void dialEl.offsetWidth;
+    dialEl.classList.add('counting');
+    Dl.cdT = setTimeout(() => closeDial(true), 1000);
+  }
+
+  function stopCount() {
+    if (!Dl) return;
+    clearTimeout(Dl.cdT);
+    dialEl.classList.remove('counting');
+  }
+
+  /* ══════════ INPUT ══════════ */
+
+  const pts = new Map();
+  let g = null, lastTap = null, swallow = false, swallowUntil = 0;
+
+  stage.addEventListener('pointerdown', e => {
+    if (e.button > 0 || !BOOKS.length) return;
+    closePanels(); closeToc();
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 2) {
+      if (g && g.type === 'flip') release(true);
+      if (g && g.type === 'car') { carDX = 0; arrange(true); }
+      const [a, b] = [...pts.values()];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      g = { type: 'pinch', d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, s0: S, lx: (mx - Tx) / S, ly: (my - Ty) / S };
+      clearTimeout(zt);
+      return;
+    }
+    if (pts.size > 2) return;
+    if (Dl) {
+      stopCount(); clearTimeout(Dl.stepT); Dl.dir = 0;
+      g = { type: 'dial', id: e.pointerId, x0: e.clientX, y0: e.clientY, sel0: Dl.sel, moved: false };
+      return;
+    }
+    g = { type: 'pending', id: e.pointerId, x0: e.clientX, y0: e.clientY, target: e.target, lx: e.clientX, lt: performance.now(), v: 0 };
+    // press and hold on an open page brings up the dial
+    if (reading && S <= 1.01 && e.target.closest('.bk') && !e.target.closest('a, button, .ribbon')) {
+      const gg = g;
+      g.holdT = setTimeout(() => {
+        if (g !== gg || g.type !== 'pending') return;
+        if (!openDial()) return;
+        swallow = true;
+        const p = pts.get(gg.id) || { x: gg.x0, y: gg.y0 };
+        g = { type: 'dial', id: gg.id, x0: p.x, y0: p.y, sel0: Dl.sel, moved: true };
+      }, 480);
+    }
+  });
+
+  addEventListener('pointermove', e => {
+    if (!pts.has(e.pointerId)) {
+      if (e.pointerType === 'mouse' && !g && BOOKS.length) hover(e);
+      return;
+    }
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (!g) return;
+
+    if (g.type === 'pinch') {
+      if (pts.size < 2) return;
+      const [a, b] = [...pts.values()];
+      S = clamp(g.s0 * Math.hypot(a.x - b.x, a.y - b.y) / g.d0, 1, 4);
+      Tx = (a.x + b.x) / 2 - S * g.lx;
+      Ty = (a.y + b.y) / 2 - S * g.ly;
+      clampT(); applyZoom(false);
+      return;
+    }
+    if (e.pointerId !== g.id) return;
+
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    const now = performance.now(), dt = now - g.lt;
+    if (dt > 0) { g.v = .7 * g.v + .3 * ((e.clientX - g.lx) / dt); g.lx = e.clientX; g.lt = now; }
+
+    if (g.type === 'dial') {
+      const step = Math.round((-(dx) - dy) / 30);
+      if (Math.abs(dx) + Math.abs(dy) > 6) { g.moved = true; dialEl.classList.add('scrub'); }
+      if (Dl) { const ns = clamp(g.sel0 + step, 0, Dl.list.length - 1); if (ns !== Dl.sel) { Dl.sel = ns; layoutDial(); } }
+      return;
+    }
+
+    if (g.type === 'pending') {
+      if (Math.hypot(dx, dy) >= 7) clearTimeout(g.holdT);
+      const rib = g.target.closest && g.target.closest('.ribbon.on');
+      if (rib && Math.hypot(dx, dy) >= 4) { swallow = true; startRibbon(rib); }
+      else {
+        if (Math.hypot(dx, dy) < 7) return;
+        swallow = true;
+        if (S > 1.01) { g.type = 'pan'; g.tx0 = Tx; g.ty0 = Ty; }
+        else if (Math.abs(dx) > Math.abs(dy) * .8) startHorizontal(dx);
+        else { g.type = 'none'; return; }
+      }
+    }
+
+    if (g.type === 'rib') { moveRibbon(dx, dy, e); return; }
+
+    if (g.type === 'pan') {
+      Tx = g.tx0 + dx; Ty = g.ty0 + dy;
+      clampT(); applyZoom(false);
+    } else if (g.type === 'car') {
+      let d = dx;
+      if ((focus === 0 && d > 0) || (focus === BOOKS.length - 1 && d < 0)) d *= .3;
+      carDX = d; arrange(false);
+    } else if (g.type === 'flip') {
+      let wx = dx / g.s, wy = dy / g.s;
+      if (g.T.back) wx = -wx;
+      g.T.target = { x: g.Pstart.x + wx * g.gain, y: g.Pstart.y + wy * g.gain };
+    }
+  }, { passive: true });
+
+  function startHorizontal(dx) {
+    const B = BOOKS[focus], dir = dx < 0 ? 1 : -1, lib = isLib();
+    const z0 = zoneAt(g.x0, g.y0);
+    const fromEdge = z0 && z0.dir === dir;
+    const canTurn = dir > 0 ? B.cur < B.last : B.cur > 0;
+    if (lib && !fromEdge) { g.type = 'car'; return; }
+    if (!canTurn || B.rif.size) { g.type = lib ? 'car' : 'none'; return; }
+
+    const i = dir > 0 ? B.cur : B.cur - 1;
+    let T = B.turners.get(i);
+    if (T && T.committed) { g.type = 'none'; return; }
+    const mir = B.lp[i] === 1, H = pageH(B);
+    const grab = toWorld(B, g.x0, g.y0, mir);
+    let spec;
+    if (fromEdge) spec = { corner: z0.nearCorner ? z0.corner : 'edge', y: grab.y };
+    else spec = { corner: grab.y < H * .16 ? 'top' : grab.y > H * .84 ? 'bottom' : 'edge', y: grab.y };
+    if (!spread && mir) spec = { corner: 'edge', y: grab.y };
+
+    if (peek && peek.B === B && peek.i === i) peek = null;
+    unpeek();
+    if (T && T.corner !== spec.corner) { finishTurner(T, B.lp[i]); T = null; }
+    T = T || getTurner(B, i, spec);
+    T.holding = true;
+    Object.assign(g, { type: 'flip', B, i, T, Pstart: { ...T.P }, s: pageScale(B), gain: spread ? 1 : 1.6 });
+    follow(T, { ...T.P }, .5);
+  }
+
+  /* the bookmark can be pulled loose: the tucked end unfolds, and a far enough pull drops it */
+  function startRibbon(rib) {
+    const bk = rib.closest('.bk'), B = BOOKS[+bk.dataset.j];
+    const k = rib.getBoundingClientRect().height / rib.offsetHeight || 1;
+    rib.classList.remove('back');
+    rib.classList.add('drag', 'settled');
+    B.el.style.zIndex = 20;
+    Object.assign(g, { type: 'rib', B, rib, k, fold: rib.firstChild, rot: 0, lastX: g.x0 });
+  }
+
+  function moveRibbon(dx, dy, e) {
+    const { rib, k, fold } = g;
+    const lx = dx / k, ly = dy / k, H = rib.offsetHeight;
+    const d = Math.hypot(lx, ly);
+    const sway = clamp((e.clientX - g.lastX) * 1.6, -14, 14);
+    g.lastX = e.clientX;
+    g.rot += (clamp(-lx / H * 22, -38, 38) + sway - g.rot) * .25;
+    rib.style.transform = `translate(${lx.toFixed(1)}px,${ly.toFixed(1)}px) rotate(${g.rot.toFixed(2)}deg)`;
+    const u = clamp(d / (H * .9), 0, 1);
+    fold.style.transform = `perspective(160px) rotateX(${(-90 + 90 * u).toFixed(1)}deg)`;
+    g.far = d > H * 1.5;
+  }
+
+  function endRibbon(cancel) {
+    const { B, rib, fold, far } = g;
+    if (far && !cancel) {
+      const cur = new DOMMatrix(getComputedStyle(rib).transform);
+      rib.classList.add('gone');
+      rib.style.transform = `translate(${(cur.e + g.rot * 3).toFixed(1)}px,${(cur.f + rib.offsetHeight * 3).toFixed(1)}px) rotate(${(g.rot * 2.2 + (g.rot >= 0 ? 24 : -24)).toFixed(1)}deg)`;
+      setTimeout(() => {
+        B.mark = 0;
+        rib.classList.remove('on', 'gone', 'drag', 'settled');
+        rib.style.transform = ''; fold.style.transform = '';
+        place(B, false); arrange(true); updateHint();
+      }, 720);
+    } else {
+      rib.classList.add('back');
+      rib.style.transform = '';
+      fold.style.transform = '';
+      setTimeout(() => rib.classList.remove('drag', 'back'), 460);
+      arrange(true);
+    }
+  }
+
+  function release(revert) {
+    const { B, i, T, v } = g;
+    T.holding = false;
+    const sv = T.back ? v : -v;
+    const complete = !revert && (sv > .35 || (T.prog > .2 && sv > -.25));
+    const doneDir = T.back ? 0 : 1;
+    g = null;
+    commit(B, i, complete ? doneDir : 1 - doneDir);
+  }
+
+  function up(e) {
+    if (!pts.has(e.pointerId)) return;
+    pts.delete(e.pointerId);
+    if (!g) return;
+
+    if (g.type === 'pinch') {
+      if (pts.size === 0) {
+        if (S < 1.05) zoomAt(innerWidth / 2, innerHeight / 2, 1, true); else commitZoom();
+        g = null;
+      }
+      return;
+    }
+    if (e.pointerId !== g.id) return;
+
+    clearTimeout(g.holdT);
+    if (g.type === 'dial') {
+      dialEl.classList.remove('scrub');
+      if (!Dl) { g = null; return; }
+      if (g.moved) startCount();
+      else {
+        const box = dialEl.getBoundingClientRect();
+        const off = Math.round((e.clientY - box.top) / ROW);
+        if (Math.abs(e.clientX - (box.left + box.width / 2)) < box.width / 2 + 20 && Math.abs(off) <= 4) {
+          dialStep(off); closeDial(true);
+        } else closeDial(false);
+      }
+      g = null;
+      swallowUntil = performance.now() + 400;
+      return;
+    }
+    if (g.type === 'flip') release(e.type === 'pointercancel');
+    else if (g.type === 'rib') endRibbon(e.type === 'pointercancel');
+    else if (g.type === 'car') {
+      const dx = e.clientX - g.x0, v = g.v;
+      let nf = focus;
+      if (dx < -60 || v < -.45) nf++; else if (dx > 60 || v > .45) nf--;
+      carDX = 0; setFocus(nf);
+    }
+    else if (g.type === 'pending' && e.type === 'pointerup') tap(e);
+    g = null;
+    if (swallow) setTimeout(() => { swallow = false; }, 60);
+  }
+
+  addEventListener('pointerup', up);
+  addEventListener('pointercancel', up);
+
+  function tap(e) {
+    const t = g.target;
+    if (t.closest('a, button')) return;
+    swallowUntil = performance.now() + 450;
+    const B = BOOKS[focus], lib = isLib();
+    const bk = t.closest('.bk');
+    if (t.closest('.ribbon') && bk) {
+      const j = +bk.dataset.j;
+      if (j === focus) resumeBook(B);
+      else if (lib) { setFocus(j); resumeBook(BOOKS[j]); }
+      return;
+    }
+    if (bk && +bk.dataset.j !== focus) { if (lib) setFocus(+bk.dataset.j); return; }
+
+    if (lib) { if (bk) enterRead(); return; }
+
+    const z = zoneAt(e.clientX, e.clientY);
+    if (z) { flip(B, z.dir, { corner: z.corner }); lastTap = null; return; }
+
+    if (!bk) {
+      if (S > 1.01) { resetZoom(); return; }
+      closeBook(B);
+      return;
+    }
+
+    const now = performance.now();
+    if (lastTap && now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+      zoomAt(e.clientX, e.clientY, S > 1.01 ? 1 : 2.5, true);
+      lastTap = null;
+    } else lastTap = { t: now, x: e.clientX, y: e.clientY };
+  }
+
+  function hover(e) {
+    if (Dl) return;
+    const t = e.target;
+    const off = t.closest && t.closest('.corner, .chrome, .zoomreset, .toc, .hint');
+    const bk = !off && t.closest && t.closest('.bk');
+    const lib = isLib();
+    const hj = lib && bk && +bk.dataset.j !== focus ? +bk.dataset.j : null;
+    if (hj !== hov) { hov = hj; arrange(true); }
+    const z = off || hj !== null ? null : zoneAt(e.clientX, e.clientY);
+    setPeek(z);
+    stage.style.cursor = z || hj !== null || (lib && bk) ? 'pointer' : (S > 1.01 ? 'grab' : '');
+  }
+
+  document.addEventListener('click', e => {
+    if ((swallow || performance.now() < swallowUntil) && stage.contains(e.target)) { e.preventDefault(); e.stopPropagation(); return; }
+    const a = e.target.closest('[data-goto]');
+    if (a) {
+      e.preventDefault();
+      const bk = a.closest('.bk');
+      if (a.closest('.toc')) { goTo(BOOKS[focus], +a.dataset.goto); closeToc(); return; }
+      if (bk && +bk.dataset.j === focus) goTo(BOOKS[focus], +a.dataset.goto);
+      return;
+    }
+    if (e.target.closest('a[href="#"]')) e.preventDefault();
+    if (!e.target.closest('.toc, .count')) closeToc();
+  }, true);
+
+  document.addEventListener('mouseleave', () => { if (BOOKS.length) { setPeek(null); if (hov !== null) { hov = null; arrange(true); } } });
+  ['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault()));
+
+  /* wheel */
+  let acc = 0, cool = false, wt, ct;
+  stage.addEventListener('wheel', e => {
+    e.preventDefault();
+    if (!BOOKS.length) return;
+    if (Dl) {
+      Dl.wacc = (Dl.wacc || 0) + (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * (e.deltaMode === 1 ? 30 : 1);
+      while (Math.abs(Dl.wacc) >= 50) { dialStep(Math.sign(Dl.wacc)); Dl.wacc -= Math.sign(Dl.wacc) * 50; }
+      stopCount(); clearTimeout(Dl.wheelT); Dl.wheelT = setTimeout(startCount, 220);
+      return;
+    }
+    if (e.ctrlKey) { zoomAt(e.clientX, e.clientY, S * Math.exp(-e.deltaY * .01), false); return; }
+    if (S > 1.01) { Tx -= e.deltaX; Ty -= e.deltaY; clampT(); applyZoom(false); return; }
+    if (cool) { clearTimeout(ct); ct = setTimeout(() => { cool = false; }, 220); return; }
+    const horiz = Math.abs(e.deltaX) > Math.abs(e.deltaY);
+    acc += (horiz ? e.deltaX : e.deltaY) * (e.deltaMode === 1 ? 30 : 1);
+    clearTimeout(wt); wt = setTimeout(() => { acc = 0; }, 200);
+    if (Math.abs(acc) > 70) {
+      if (isLib()) setFocus(focus + Math.sign(acc));
+      else flip(BOOKS[focus], Math.sign(acc), { corner: 'bottom' });
+      acc = 0; cool = true;
+      clearTimeout(ct); ct = setTimeout(() => { cool = false; }, 220);
+    }
+  }, { passive: false });
+
+  /* keys */
+  let holdKey = null, holdT;
+
+  addEventListener('keyup', e => {
+    if (e.key !== holdKey) return;
+    holdKey = null;
+    clearTimeout(holdT);
+    if (Dl) dialLetGo();
+  });
+
+  addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey || !BOOKS.length) return;
+    const k = e.key, B = BOOKS[focus], lib = isLib();
+    const arrow = k === 'ArrowRight' ? 1 : k === 'ArrowLeft' ? -1 : 0;
+
+    if (Dl) {
+      e.preventDefault();
+      if (e.repeat) return;
+      if (arrow) { holdKey = k; dialHold(arrow); }
+      else if (k === 'ArrowDown') { dialStep(1); startCount(); }
+      else if (k === 'ArrowUp') { dialStep(-1); startCount(); }
+      else if (k === 'Enter' || k === ' ') closeDial(true);
+      else if (k === 'Escape') closeDial(false);
+      return;
+    }
+    if (arrow && !lib && e.repeat) { e.preventDefault(); return; }   // holding is handled by the dial
+    if (arrow && !lib && !document.querySelector('.corner.open')) {
+      holdKey = k;
+      clearTimeout(holdT);
+      holdT = setTimeout(() => { if (holdKey === k && openDial()) dialHold(arrow, true); }, 800);
+    }
+    if (k === 'Escape') {
+      if (closePanels()) return;
+      if (tocEl.classList.contains('open')) { closeToc(); return; }
+      if (S > 1.01) { resetZoom(); return; }
+      closeBook(B);
+      return;
+    }
+    if (document.querySelector('.corner.open')) return;
+    if ((k === ' ' || k === 'Enter') && e.target.closest('button, a')) return;
+    if (k >= '1' && k <= '3') { switchIssue(+k - 1); return; }
+    if (lib) {
+      if (k === 'ArrowRight') { e.preventDefault(); setFocus(focus + 1); }
+      else if (k === 'ArrowLeft') { e.preventDefault(); setFocus(focus - 1); }
+      else if (k === 'Enter' || k === ' ' || k === 'ArrowDown') { e.preventDefault(); enterRead(); }
+      return;
+    }
+    if (k === 'ArrowRight' || k === 'PageDown' || k === ' ') { e.preventDefault(); flip(B, 1, { corner: 'bottom' }); }
+    else if (k === 'ArrowLeft' || k === 'PageUp') { e.preventDefault(); flip(B, -1, { corner: 'bottom' }); }
+    else if (k === 'ArrowUp') { e.preventDefault(); closeBook(B); }
+    else if (k === 'Home') { e.preventDefault(); goTo(B, 1); }
+    else if (k === 'End')  { e.preventDefault(); goTo(B, total(B)); }
+  });
+
+  /* chrome buttons */
+  issueBtns.forEach(b => b.addEventListener('click', () => switchIssue(+b.dataset.issue)));
+  $('#home').addEventListener('click', () => { if (BOOKS.length) { closeToc(); closeBook(BOOKS[focus]); } });
+  zoomBtn.addEventListener('click', resetZoom);
+
+  function closePanels() {
+    let any = false;
+    corners.forEach(c => {
+      if (c.classList.contains('open')) {
+        any = true;
+        c.classList.remove('open');
+        c.querySelector('.tab').setAttribute('aria-expanded', 'false');
+      }
+    });
+    return any;
+  }
+
+  corners.forEach(c => {
+    const tab = c.querySelector('.tab');
+    tab.addEventListener('click', () => {
+      const opening = !c.classList.contains('open');
+      closePanels(); closeToc();
+      if (opening) { c.classList.add('open'); tab.setAttribute('aria-expanded', 'true'); }
+    });
+  });
+
+  /* ══════════ GO ══════════ */
+
+  let rt, lastW = innerWidth;
+  addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => {
+      if (!BOOKS.length) return;
+      if (S > 1.01 && innerWidth === lastW) return;
+      lastW = innerWidth;
+      layout();
+    }, 140);
+  });
+
+  addEventListener('hashchange', () => {
+    const m = /^#(\d\d)(?:-(\d\d))?$/.exec(location.hash);
+    if (!m || !BOOKS.length) return;
+    const j = ISSUES.findIndex(I => I.no === m[1]);
+    if (j < 0) return;
+    const go = () => { if (m[2]) goTo(BOOKS[focus], +m[2]); };
+    if (j !== focus) { switchIssue(j); setTimeout(go, 700); } else go();
+  });
+
+  const fontReady = Promise.race([
+    document.fonts.load('400 16px "IBM Plex Mono"').catch(() => {}),
+    new Promise(r => setTimeout(r, 2500)),
+  ]);
+
+  fontReady.then(async () => {
+    await paintPatterns().catch(() => {});
+    prepare();
+    buildBooks();
+    const m = /^#(\d\d)(?:-(\d\d))?$/.exec(location.hash);
+    if (m) {
+      const j = ISSUES.findIndex(I => I.no === m[1]);
+      if (j >= 0) focus = j;
+    }
+    layout();
+    if (m && m[2]) {
+      const B = BOOKS[focus], p = clamp(+m[2], 1, total(B));
+      reading = true;
+      buildLeaves(B, p); arrange(false); chrome();
+      if (B.cur > 0) { opened = true; updateHint(); }
+    }
+    document.body.classList.add('ready');
+  });
+})();
+</script>
 
 </body>
 </html>
