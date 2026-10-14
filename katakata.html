@@ -816,7 +816,7 @@
       padding: 4px 0;
     }
 
-    .hint { opacity: .45; pointer-events: none; transition: opacity .6s ease; }
+    .hint { display: none; }
     .hint.gone, body.zoomed .hint { opacity: 0; }
 
     .zoomreset { opacity: .8; }
@@ -960,23 +960,27 @@
 
     .drum { position: absolute; left: 0; top: 0; width: 100%; height: 0; }
 
+    /* rows are laid out at their largest (the chosen size) and only ever scaled down and moved,
+       so each is drawn once and the wheel turns on the graphics card */
     .dr {
       position: absolute;
-      left: 0; top: -19px;
+      left: 0;
+      top: calc(-19px * var(--pk, 1.4));
       width: 100%;
-      height: 38px;
+      height: calc(38px * var(--pk, 1.4));
       display: grid;
       grid-template-columns: 5.4em minmax(0, 1fr);
       align-items: center;
-      font-size: 14px;
+      font-size: calc(14px * var(--pk, 1.4));
       line-height: 1.2;
       white-space: nowrap;
       transform-origin: 0 50%;
-      transition: transform .3s var(--ease), opacity .3s ease;
+      will-change: transform, opacity;
+      contain: layout style;
     }
 
     .dr .t { overflow: hidden; text-overflow: ellipsis; }
-    .dr .t small { display: block; font-size: 11px; opacity: .5; overflow: hidden; text-overflow: ellipsis; }
+    .dr .t small { display: block; font-size: .786em; opacity: .5; overflow: hidden; text-overflow: ellipsis; }
     .dr:not(.mj) .t { opacity: .45; }
     .dr:not(.mj) .t small { display: none; }
     .dr.on .t { opacity: 1; }
@@ -1001,7 +1005,7 @@
       clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
     }
 
-    .dial .dr { transition: none; width: calc(100% / var(--pk, 1.4)); }
+    .dial .dr { transition: none; }
     .dial.counting .dcd::after { animation: dial-count 1s linear forwards; }
     @keyframes dial-count { to { transform: scaleX(1); } }
 
@@ -1020,7 +1024,7 @@
     body.dialing .dwin, body.dialing .dcd { opacity: 1; }
     body.dialing .dial-h, body.dialing .dial-f { opacity: .5; }
     .veil { position: fixed; inset: 0; z-index: 25; background: var(--desk); opacity: 0; pointer-events: none; transition: opacity .35s ease; }
-    body.dialing .veil { opacity: .975; }
+    body.dialing .veil { opacity: .985; }
     body.dialing .toc, body.dialing .hint { opacity: 0 !important; pointer-events: none !important; }
 
     #measure {
@@ -2412,32 +2416,48 @@
     });
   }
 
-  function placeRows(D, spots, fade) {
-    D.rows.forEach((r, i) => {
-      const sp = spots && spots[i];
-      r.style.transform = sp ? `translate(${sp.x}px,${sp.y}px) scale(.786)` : `translate(0,${(i - D.sel) * 10}px) scale(.92)`;
-      r.style.opacity = sp ? (sp.vis ? (fade ? 0 : .6) : 0) : 0;
-    });
+  // where a row sits in the side pane (or just under the wheel if the pane isn't showing)
+  function homeOf(D, spots, i, leaving) {
+    const sp = spots && spots[i], pk = 1 + D.peak;
+    if (sp) return { x: sp.x, y: sp.y, s: 11 / (14 * pk), o: sp.vis && !leaving ? .6 : 0 };
+    return { x: 0, y: (i - D.sel) * 10, s: .92 / pk, o: 0 };
   }
 
-  // a flat drum: rows bunch up and shrink towards the rim, the chosen one sits large in the window
+  function wheelOf(i, pos) {
+    const off = i - pos, a = Math.abs(off), pk = 1 + Dl.peak;
+    return {
+      x: 0,
+      y: drumY(off),
+      s: (Math.max(.62, 1 - .07 * a) + Dl.peak * Math.max(0, 1 - a)) / pk,
+      o: a > 7 ? 0 : a < 1 ? 1 - .41 * a : Math.max(0, .7 - .11 * a),
+    };
+  }
+
   // the drum is continuous: Dl.pos is a float, rows bunch up and shrink smoothly towards the rim
   function drumY(off) {
     const a = Math.min(Math.abs(off), 6.5);
-    return Math.sign(off) * ROW * (1.2 * a - .07 * a * a);
+    return Math.sign(off) * ROW * (1.34 * a - .085 * a * a);
   }
 
-  function layoutDial() {
+  // draws one frame; while the dial is still growing out of the pane, each row blends from
+  // its spot in the pane towards its place on the wheel — the wheel itself stays live throughout
+  function layoutDial(now) {
     const pos = Dl.pos, sel = clamp(Math.round(pos), 0, Dl.list.length - 1);
+    let morphing = false;
     Dl.rows.forEach((r, i) => {
-      const off = i - pos, a = Math.abs(off);
-      if (a > 7) { if (!r._gone) { r.style.opacity = 0; r._gone = true; } return; }
+      let w = wheelOf(i, pos);
+      if (Dl.m0) {
+        const k = clamp((now - Dl.m0 - Dl.delay[i]) / 460, 0, 1);
+        if (k < 1) morphing = true;
+        const e = 1 - Math.pow(1 - k, 3), h = Dl.from[i];
+        w = { x: h.x + (w.x - h.x) * e, y: h.y + (w.y - h.y) * e, s: h.s + (w.s - h.s) * e, o: h.o + (w.o - h.o) * e };
+      }
+      if (w.o < .003) { if (!r._gone) { r.style.opacity = 0; r._gone = true; } return; }
       r._gone = false;
-      const sc_ = Math.max(.62, 1 - .07 * a) + Dl.peak * Math.max(0, 1 - a);
-      const op = a < 1 ? 1 - .41 * a : Math.max(0, .7 - .11 * a);
-      r.style.transform = `translate(0,${drumY(off).toFixed(2)}px) scale(${sc_.toFixed(4)})`;
-      r.style.opacity = op.toFixed(3);
+      r.style.transform = `translate(${w.x.toFixed(2)}px,${w.y.toFixed(2)}px) scale(${w.s.toFixed(4)})`;
+      r.style.opacity = w.o.toFixed(3);
     });
+    if (!morphing) Dl.m0 = 0;
     if (sel !== Dl.sel || !Dl.rows[sel].classList.contains('on')) {
       if (Dl.rows[Dl.sel]) Dl.rows[Dl.sel].classList.remove('on');
       Dl.sel = sel;
@@ -2445,24 +2465,40 @@
       const e = Dl.list[sel];
       countEl.textContent = e.ps.map(pad).join('–') + ' / ' + pad(total(Dl.B));
     }
+    return morphing;
+  }
+
+  // at most one layout per frame, however many touch or trackpad events arrive
+  function pump() {
+    if (!Dl || Dl.rq) return;
+    const D = Dl;
+    D.rq = requestAnimationFrame(now => {
+      D.rq = 0;
+      if (Dl !== D) return;
+      let more = false;
+      if (D.anim) more = D.anim(now);
+      if (Dl !== D) return;
+      more = layoutDial(now) || more;
+      if (more) pump();
+    });
   }
 
   // glide the drum to a row, easing out (the snap)
   function glide(to, dur, done) {
-    cancelAnimationFrame(Dl.raf);
-    const from = Dl.pos, t0 = performance.now(), D0 = Dl;
+    if (!Dl) return;
+    const from = Dl.pos, t0 = performance.now();
     to = clamp(to, 0, Dl.list.length - 1);
     Dl.target = to;
-    if (reduce || dur <= 0 || Math.abs(to - from) < .001) { Dl.pos = to; layoutDial(); if (done) done(); return; }
-    const step = now => {
-      if (Dl !== D0) return;
-      const k = clamp((now - t0) / dur, 0, 1), e = 1 - Math.pow(1 - k, 4);
-      Dl.pos = from + (to - from) * e;
-      layoutDial();
-      if (k < 1) Dl.raf = requestAnimationFrame(step);
-      else { Dl.raf = 0; if (done) done(); }
+    if (reduce || dur <= 0 || Math.abs(to - from) < .001) { Dl.pos = to; Dl.anim = null; pump(); if (done) done(); return; }
+    Dl.anim = now => {
+      const k = clamp((now - t0) / dur, 0, 1);
+      Dl.pos = from + (to - from) * (1 - Math.pow(1 - k, 4));
+      if (k < 1) return true;
+      Dl.anim = null;
+      if (done) done();
+      return false;
     };
-    Dl.raf = requestAnimationFrame(step);
+    pump();
   }
 
   function openDial() {
@@ -2472,19 +2508,23 @@
     const list = dialEntries(B);
     drum.innerHTML = list.map(e =>
       `<div class="dr${e.major ? ' mj' : ''}"><span class="n">${e.ps.map(pad).join('–')}${B.mark > 3 && e.ps.includes(B.mark) ? '<i class="bm" title="bookmark"></i>' : ''}</span><span class="t">${e.sec.t}${e.sec.a ? `<small>${e.sec.a}</small>` : ''}</span></div>`).join('');
-    Dl = { B, list, rows: [...drum.children], sel: B.cur, pos: B.cur, target: B.cur, dir: 0, raf: 0, peak: innerWidth < 640 ? .2 : .4 };
+    Dl = { B, list, rows: [...drum.children], sel: B.cur, pos: B.cur, target: B.cur, dir: 0, rq: 0, anim: null, peak: innerWidth < 640 ? .2 : .4 };
     dialEl.style.setProperty('--pk', 1 + Dl.peak);
     dialH.textContent = `issue ${B.I.no} — ${B.I.title}`;
-    dialF.textContent = coarse ? '' : '← → dial · let go to turn there · esc stays';
+    dialF.textContent = '';
     const spots = paneSpots(list);
-    Dl.rows.forEach(r => { r.style.transition = 'none'; });
-    placeRows(Dl, spots, false);
-    void drum.offsetWidth;
-    Dl.rows.forEach((r, i) => { r.style.transition = `transform .5s var(--ease) ${Math.min(Math.abs(i - Dl.sel), 6) * 18}ms, opacity .4s ease`; });
+    Dl.from = list.map((_, i) => homeOf(Dl, spots, i, false));
+    Dl.delay = list.map((_, i) => Math.min(Math.abs(i - Dl.sel), 6) * 18);
+    Dl.rows.forEach((r, i) => {
+      const h = Dl.from[i];
+      r.style.transition = 'none';
+      r.style.transform = `translate(${h.x}px,${h.y}px) scale(${h.s})`;
+      r.style.opacity = h.o;
+    });
+    Dl.m0 = performance.now();
     document.body.classList.add('dialing');
     Dl.rows[Dl.sel].classList.add('on');
-    layoutDial();
-    setTimeout(() => { if (Dl) Dl.rows.forEach(r => { r.style.transition = 'none'; }); }, 650);
+    pump();
     return true;
   }
 
@@ -2492,13 +2532,17 @@
     if (!Dl) return;
     const D = Dl, target = D.list[D.sel].k, B = D.B;
     clearTimeout(D.stepT); clearTimeout(D.cdT); clearTimeout(D.wheelT);
-    cancelAnimationFrame(D.raf);
+    cancelAnimationFrame(D.rq); D.anim = null;
     dialEl.classList.remove('counting');
     Dl = null;
     document.body.classList.remove('dialing');
     const spots = paneSpots(D.list);
-    D.rows.forEach((r, i) => { r.style.transition = `transform .45s var(--ease) ${Math.min(Math.abs(i - D.sel), 6) * 14}ms, opacity .3s ease`; });
-    placeRows(D, spots, true);
+    D.rows.forEach((r, i) => {
+      const h = homeOf(D, spots, i, true);
+      r.style.transition = `transform .45s var(--ease) ${Math.min(Math.abs(i - D.sel), 6) * 14}ms, opacity .3s ease`;
+      r.style.transform = `translate(${h.x}px,${h.y}px) scale(${h.s})`;
+      r.style.opacity = h.o;
+    });
     setTimeout(() => { if (!Dl) drum.innerHTML = ''; }, 600);
     if (go && target !== B.cur) {
       if (Math.abs(target - B.cur) === 1) flip(B, target > B.cur ? 1 : -1, { corner: 'bottom' });
@@ -2568,7 +2612,7 @@
     }
     if (pts.size > 2) return;
     if (Dl) {
-      stopCount(); clearTimeout(Dl.stepT); Dl.dir = 0; cancelAnimationFrame(Dl.raf);
+      stopCount(); clearTimeout(Dl.stepT); Dl.dir = 0; Dl.anim = null;
       g = { type: 'dial', id: e.pointerId, x0: e.clientX, y0: e.clientY, pos0: Dl.pos, moved: false, hist: [] };
       return;
     }
@@ -2615,8 +2659,8 @@
       const n = Dl.list.length - 1;
       let p = g.pos0 + (-dy - dx * .6) / 34;                  // finger up (or left) winds forward
       if (p < 0) p = p * .35; else if (p > n) p = n + (p - n) * .35;   // soft rubber band at the ends
-      Dl.pos = p; Dl.target = p;
-      layoutDial();
+      Dl.pos = p; Dl.target = p; Dl.anim = null;
+      pump();
       g.hist.push({ t: performance.now(), p });
       if (g.hist.length > 6) g.hist.shift();
       return;
@@ -2864,10 +2908,10 @@
     e.preventDefault();
     if (!BOOKS.length) return;
     if (Dl) {
-      cancelAnimationFrame(Dl.raf); stopCount();
+      Dl.anim = null; stopCount();
       const d = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * (e.deltaMode === 1 ? 30 : 1);
       Dl.pos = clamp(Dl.pos + d / 60, -.3, Dl.list.length - .7); Dl.target = Dl.pos;
-      layoutDial();
+      pump();
       clearTimeout(Dl.wheelT);
       Dl.wheelT = setTimeout(() => glide(Math.round(Dl.pos), 260, startCount), 120);
       return;
