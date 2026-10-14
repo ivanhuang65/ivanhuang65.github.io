@@ -192,7 +192,17 @@
 
     .ribbon.on:hover svg { transform: scale(1.18, 1.22); }
 
+    @media (hover: none) {
+      .pg a:hover, .pg a.ti:hover .tt, .pg a.ts:hover span:first-child { text-decoration: none; }
+      .pg a.btn:hover { background: none; }
+    }
+
     @media (pointer: coarse) {
+      /* links answer only on their words, so a page drag that starts nearby doesn't catch them */
+      .pg a.ti, .pg a.ts { pointer-events: none; }
+      .pg a.ti .pn, .pg a.ti .tt, .pg a.ts > span { pointer-events: auto; }
+      .pg a.ti .pn, .pg a.ti .tt { justify-self: start; }
+
       .hint, .dial-f { display: none; }
       .ribbon { width: 8.5%; min-width: 24px; height: 12.5%; }
       .ribbon::before { content: ''; position: absolute; inset: 0 -14px -18px; }
@@ -970,7 +980,6 @@
     .dr:not(.mj) .t { opacity: .45; }
     .dr:not(.mj) .t small { display: none; }
     .dr.on .t { opacity: 1; }
-    .dr.on .t small { display: block; }
 
     .dwin, .dcd {
       position: absolute;
@@ -983,6 +992,15 @@
     .dwin { top: -34px; background: var(--rule); }
     .dcd  { top: 33px;  background: var(--rule); }
     .dcd::after { content: ''; position: absolute; inset: 0; background: var(--ink); transform-origin: 0 0; transform: scaleX(0); }
+    .dr .bm {
+      display: inline-block;
+      width: .5em; height: .78em;
+      margin-left: .5em;
+      vertical-align: -.06em;
+      background: currentColor;
+      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
+    }
+
     .dial .dr { transition: none; width: calc(100% / var(--pk, 1.4)); }
     .dial.counting .dcd::after { animation: dial-count 1s linear forwards; }
     @keyframes dial-count { to { transform: scaleX(1); } }
@@ -2158,7 +2176,7 @@
     BOOKS.forEach((B, j) => {
       const rel = j - focus, a = Math.abs(rel), sg = Math.sign(rel);
       let x, s, o = 1;
-      if (rel === 0) { x = carDX; s = Lc * (1 + pullY / 1600); }
+      if (rel === 0) { x = carDX; s = Lc * (1 - Math.abs(pullY) / 1600); }
       else if (lib) { x = sg * (slot + (a - 1) * step) + carDX; s = Ln * (hov === j ? 1.04 : 1); }
       else { x = sg * (slot + (a - 1) * step + innerWidth * .6); s = Ln; o = 0; }
       const lift = rel === 0 ? pullY : lib && hov === j && rel !== 0 ? -12 * sc : 0;
@@ -2453,7 +2471,7 @@
     unpeek(); closeToc();
     const list = dialEntries(B);
     drum.innerHTML = list.map(e =>
-      `<div class="dr${e.major ? ' mj' : ''}"><span class="n">${e.ps.map(pad).join('–')}</span><span class="t">${e.sec.t}${e.sec.a ? `<small>${e.sec.a}</small>` : ''}</span></div>`).join('');
+      `<div class="dr${e.major ? ' mj' : ''}"><span class="n">${e.ps.map(pad).join('–')}${B.mark > 3 && e.ps.includes(B.mark) ? '<i class="bm" title="bookmark"></i>' : ''}</span><span class="t">${e.sec.t}${e.sec.a ? `<small>${e.sec.a}</small>` : ''}</span></div>`).join('');
     Dl = { B, list, rows: [...drum.children], sel: B.cur, pos: B.cur, target: B.cur, dir: 0, raf: 0, peak: innerWidth < 640 ? .2 : .4 };
     dialEl.style.setProperty('--pk', 1 + Dl.peak);
     dialH.textContent = `issue ${B.I.no} — ${B.I.title}`;
@@ -2613,7 +2631,7 @@
         swallow = true;
         if (S > 1.01) { g.type = 'pan'; g.tx0 = Tx; g.ty0 = Ty; }
         else if (Math.abs(dx) > Math.abs(dy) * .8) startHorizontal(dx);
-        else if (reading && dy < 0 && !Dl) { g.type = 'pull'; clearTimeout(g.holdT); }
+        else if (reading && !Dl) { g.type = 'pull'; clearTimeout(g.holdT); }
         else { g.type = 'none'; return; }
       }
     }
@@ -2621,8 +2639,8 @@
     if (g.type === 'rib') { moveRibbon(dx, dy, e); return; }
 
     if (g.type === 'pull') {
-      const up = Math.max(0, -dy);
-      pullY = -(up < 120 ? up : 120 + (up - 120) * .35);      // follows the finger, then resists
+      const d = Math.abs(dy);
+      pullY = Math.sign(dy) * (d < 120 ? d : 120 + (d - 120) * .35);   // follows the finger up or down, then resists
       arrange(false);
       return;
     }
@@ -2761,7 +2779,7 @@
     else if (g.type === 'pull') {
       const dy = e.clientY - g.y0;
       pullY = 0;
-      if (dy < -90 && e.type !== 'pointercancel') closeBook(BOOKS[focus]);
+      if (Math.abs(dy) > 90 && e.type !== 'pointercancel') closeBook(BOOKS[focus]);
       else arrange(true);
     }
     else if (g.type === 'car') {
